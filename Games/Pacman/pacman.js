@@ -1,0 +1,346 @@
+//-----------------------------------------------------------
+//
+// Name : Pacman
+// Author : Ethann Schneider
+// Description : It's the pacman game in javascript
+//
+//-----------------------------------------------------------
+
+var canvas;
+var ctx;
+var direction = 'pause';
+var pacmancoordX = 420;
+var pacmancoordY = 600;
+var pacmanoldcoordX = 420;
+var pacmanoldcoordY = 600;
+var pixel = 30;
+var timermouvement;
+var pacmanimg = new Image();
+var phantom0img = new Image();
+var phantom1img = new Image();
+var phantom2img = new Image();
+var phantom3img = new Image();
+var pf = 0;
+var score;
+//var wall = ["120 0","90 0","60 0","30 0","150 0","210 0","240 0","180 0","300 0","270 0","330 0","360 0","390 0","420 0","480 0","450 0","510 0","570 0","540 0","600 0","630 0","660 0","720 0","690 0","750 0","810 0","780 0","840 0","870 0","870 30","870 60","870 90","870 120","870 150","870 180","870 210","870 240","870 270","870 300","870 330","870 360","870 390","870 420","870 450","870 480","870 510","870 540","870 570","870 600","870 660","870 630","870 690","870 720","870 750","870 780","870 810","870 840","870 870","840 870","780 870","750 870","720 870","810 870","660 870","690 870","570 870","540 870","630 870","600 870","510 870","420 870","450 870","480 870","390 870","330 870","300 870","270 870","360 870","210 870","240 870","180 870","150 870","120 870","90 870","60 870","30 870","0 870","0 840","0 810","0 750","0 720","0 780","0 690","0 630","0 660","0 600","0 540","0 570","0 0","0 30","0 60","0 90","0 120","0 150","0 180","0 210","0 240","0 270","0 300","0 330","0 360","0 390","0 420","0 450","0 480","0 510","480 360","450 360","390 360","420 360","360 360","330 330","330 270","330 300","330 360","510 360","510 330","510 300","510 270","480 270","360 270","390 270","450 270","300 420","330 420","390 420","360 420","450 420","420 420","480 420","510 420","540 420","570 420","570 390","570 360","570 330","540 270","570 270","300 270","270 270","240 270","270 390","270 360","270 330","270 420","180 330","210 360","210 420","210 390","210 450","210 480","240 480","270 480","210 330","150 330","210 270","180 270","150 270","90 270","90 330","60 270","60 330","150 390","150 450","150 420","150 510","150 480","150 540","180 540","210 540","240 540","270 540","30 330","120 390","90 390","60 390","60 420","60 480","120 480","90 480","120 450","30 540","60 540","90 540","240 600","210 600","180 600","150 600","120 600","90 600","60 600","60 630","60 660","60 690","60 720","60 780","60 810","90 810","120 810","150 810","210 810","180 810","90 720","120 720","120 750","150 750","210 750","210 780","210 720","210 690","180 690","150 660","180 660","120 660","240 630","270 660","300 540","330 540","330 570","300 660","330 660","270 630","270 600","330 600","300 480","360 480","360 510","360 540","390 480","420 480","450 480","480 480","510 480","570 450","570 480","570 510","540 540","510 540","480 540","450 540","420 540","570 540","390 600","390 630","420 600","390 660","390 690","390 720","360 720","300 720","300 690","360 750","360 780","390 780","390 810","330 840","300 840","300 810","300 780","270 810","270 720","480 570","480 600","480 630","450 660","480 660","450 720","450 750","450 840","450 810","480 810","510 810","540 810","540 780","480 750","510 720","540 720","480 720","570 780","570 720","600 780","630 750","630 780","630 720","570 690","570 660","630 660","630 600","600 600","570 600","540 600","510 600","510 630","510 660","600 540","630 540","660 540","690 540","690 570","690 600","660 660","690 660","780 660","720 660","750 660","840 660","750 690","750 750","720 750","690 750","690 720","690 690","840 690","780 750","810 750","780 690","840 810","810 810","780 810","750 810","720 810","690 810","630 810","600 810","570 810","720 600","810 600","780 600","810 570","810 540","810 510","720 570","720 540","750 540","750 480","750 450","750 510","810 480","810 450","690 450","660 450","630 450","630 480","660 480","690 480","630 390","690 390","660 390","750 390","780 390","810 390","630 360","630 330","660 330","690 330","750 330","780 330","810 330","810 360","780 360","750 360","690 360","660 360","660 270","720 270","750 270","780 270","840 270","780 300","630 270","330 210","360 210","390 210","420 210","450 210","480 210","510 210","540 210","300 210","270 210","240 210","570 210","600 210","210 210","90 210","60 210","30 210","60 180","60 150","60 90","60 60","120 90","120 120","120 150","120 60","180 120","180 150","180 60","240 60","240 90","240 120","270 90","300 90","390 90","330 90","360 90","300 150","330 150","360 150","390 150","240 180","180 90","90 60","150 60","420 90","420 30","420 150","390 30","330 30","300 30","360 30","450 30","480 30","480 60","480 120","480 150","450 150","540 30","540 90","540 60","540 150","570 150","570 180","660 210","660 180","660 150","660 120","630 150","630 120","600 90","630 90","630 60","600 60","660 60","660 90","720 60","720 180","720 120","750 120","810 180","750 150","750 60","780 60","810 60","810 90","810 120","780 210","750 210","720 210","810 210","720 150","120 210","150 210","270 780"]
+var wall = ["120 0","90 0","60 0","30 0","150 0","210 0","240 0","180 0","300 0","270 0","330 0","360 0","390 0","420 0","480 0","450 0","510 0","570 0","540 0","600 0","630 0","660 0","720 0","690 0","750 0","810 0","780 0","840 0","870 0","870 870","840 870","780 870","750 870","720 870","810 870","660 870","690 870","570 870","540 870","630 870","600 870","510 870","420 870","450 870","480 870","390 870","330 870","300 870","270 870","360 870","210 870","240 870","180 870","150 870","120 870","90 870","60 870","30 870","0 870","0 840","0 810","0 750","0 720","0 780","0 690","0 630","0 660","0 600","0 540","0 570","0 0","0 30","0 60","0 90","0 120","0 150","0 180","0 210","0 240","0 270","0 420","0 510","60 60","120 60","90 60","150 60","150 120","120 120","90 120","60 120","60 90","780 60","750 60","720 60","720 120","750 120","780 120","720 210","720 180","750 180","780 180","750 210","780 210","60 180","60 210","90 180","90 210","120 180","120 210","150 180","150 210","240 60","240 120","270 60","300 60","300 120","270 120","600 60","570 60","570 120","600 120","540 120","540 60","330 60","330 120","360 60","360 90","360 120","240 90","180 60","180 90","180 120","690 60","690 120","510 120","510 60","690 180","690 210","630 180","630 210","630 240","330 180","300 180","300 210","330 210","360 210","390 210","420 210","450 210","480 210","510 210","540 210","570 210","540 180","510 180","450 180","390 180","420 180","360 180","480 180","570 180","630 270","600 270","570 270","540 270","510 270","240 270","270 270","300 270","630 300","630 360","630 330","300 330","330 330","360 330","390 330","480 330","510 330","540 330","570 330","570 360","570 390","510 420","300 420","360 420","390 420","420 420","450 420","480 420","540 420","570 420","330 420","630 420","630 450","630 480","300 480","360 480","390 480","450 480","480 480","510 480","540 480","570 480","420 480","330 480","300 510","330 510","390 510","420 510","450 510","480 510","510 510","540 510","570 510","360 510","420 540","420 570","510 570","540 570","570 570","660 570","660 600","660 660","660 630","690 270","720 270","780 270","810 270","750 270","690 330","690 300","690 360","720 360","750 360","780 360","810 360","690 420","690 450","720 420","750 420","780 420","690 480","690 510","720 510","750 510","780 510","630 510","30 270","60 270","120 270","150 270","90 270","150 360","120 360","90 360","60 360","0 360","30 360","60 420","30 420","120 420","90 420","150 420","120 510","60 510","30 510","90 510","150 510","720 630","750 630","780 630","840 630","360 570","330 570","300 570","270 570","60 570","30 630","90 630","60 630","600 630","600 660","600 690","390 630","420 630","450 630","480 630","510 630","540 630","360 630","330 630","720 660","720 690","750 690","780 690","690 750","720 750","750 750","780 750","600 720","570 750","600 750","630 750","660 750","540 750","270 750","240 750","180 750","150 750","120 750","90 750","60 750","210 750","300 750","330 750","30 690","60 690","90 690","660 690","330 690","360 690","390 690","420 690","450 690","480 690","510 690","540 660","540 690","420 720","420 750","510 750","360 750","780 810","750 810","720 810","690 810","660 810","600 810","540 810","510 810","570 810","630 810","330 810","300 810","420 810","360 810","60 810","90 810","120 810","150 810","180 810","210 810","240 810","270 810","840 840","840 810","840 780","840 750","840 720","840 660","840 690","840 510","840 540","840 570","840 600","840 420","840 360","840 270","810 420","810 510","810 630","810 690","840 210","840 240","840 180","840 150","840 120","840 90","840 60","840 30","420 30","420 60","420 120","420 90","480 60","480 90","480 120","600 90","660 60","660 90","660 120","780 90","150 300","150 330","420 240","420 270","330 270","360 270","480 270","450 330","210 360","210 330","210 300","210 270","210 240","210 210","210 180","150 450","150 480","210 420","210 480","210 450","210 510","270 420","270 390","270 330","270 360","270 480","270 510","480 570","780 570","750 570","720 570","690 570","90 570","120 570","150 570","180 570","180 630","180 600","180 660","180 690","120 630","120 660","120 690","240 720","240 690","240 660","240 630","300 630","300 660","300 690","480 750","480 810","240 570","600 570","270 180","270 210"]
+var graine;
+var pacball;
+var WakaWaka = new Audio("WakaWaka.webm");
+var BeginSong = new Audio("BeginningSong.webm");
+var phantomX = [300,330,540,540];
+var phantomY = [390,390,390,390];
+var phantomoldX = [300,330,540,540];
+var phantomoldY = [390,390,390,390];
+var directionphantom = ['north','north','north','north'];
+var pacmantickpacball;
+var pacmanpacballtime = 10;
+
+function loadwall(){ //function to place wall
+    if(direction != 'pause'){
+        for(i=0;i<wall.length;i++){
+            var xy = wall[i].split(" ")
+            ctx.fillStyle = "#000000"
+            ctx.fillRect(xy[0], xy[1] ,pixel,pixel)
+        }
+    }
+}
+
+function loadgraine(){ //function to place graine
+    if(direction != 'pause'){
+        for(i=0;i<graine.length;i++){
+            var xy = graine[i].split(" ")
+            ctx.fillStyle = "#ffff"
+            ctx.fillRect(parseInt(xy[0])+10,parseInt(xy[1])+10,pixel-20,pixel-20)
+        }
+    }
+}
+
+function loadpacball(){ //function to place pacball
+    if(direction != 'pause'){
+        for(i=0;i<pacball.length;i++){
+            var xy = pacball[i].split(" ")
+            ctx.fillStyle = "#ffff"
+            ctx.fillRect(parseInt(xy[0])+7,parseInt(xy[1])+7,pixel-14,pixel-14)
+        }
+    }
+}
+
+function clickcan(e){ //function for draw wall when you click on the canvas i use that to create the labyrinthe
+    var cx = e.clientX;
+    var cy = e.clientY;
+    var x;
+    var y;
+    for(i=0;i<cx;i=i+30){x=i}
+    for(i=0;i<cy;i=i+30){y=i}
+    var xy = x+" "+y;
+    if(!wall.includes(xy)){
+        wall.push(xy)
+    }else{
+        var nwio = wall.indexOf(xy)
+        wall.splice(nwio,1)
+        ctx.fillStyle = "#444f"
+        ctx.fillRect(parseInt(x),parseInt(y),pixel,pixel)
+    }
+}
+
+function mangergraine(){ //function when pacman eat graine
+    xy = pacmancoordX+" "+pacmancoordY
+    if(graine.includes(xy)){
+        var nwio = graine.indexOf(xy)
+        graine.splice(nwio,1)
+        score++;
+    }
+    if(pacball.includes(xy)){
+        var nwio = pacball.indexOf(xy)
+        pacball.splice(nwio,1)
+        pacmantickpacball = 0;
+    }
+}
+
+function fntouche(e){ //function when you touch your keyboard touch
+    var touche = e.keyCode;
+    if(direction == 'pause'){
+        if(touche == 32) {
+            fnstart();
+        }
+    }else{
+        switch(touche) {
+            case 39 : if(!wall.includes((pacmancoordX+pixel)+" "+pacmancoordY)) direction = 'est'; break;
+            case 37 : if(!wall.includes((pacmancoordX-pixel)+" "+pacmancoordY)) direction = 'west'; break;
+            case 38 : if(!wall.includes(pacmancoordX+" "+(pacmancoordY-pixel))) direction = 'nord'; break;
+            case 40 : if(!wall.includes(pacmancoordX+" "+(pacmancoordY+pixel))) direction = 'sud'; break;
+        };
+    }
+}
+
+function fnstart(){ //function start the party
+    canvas = document.getElementById("dessin");
+    graine = ["660 390","660 420","660 360","660 330","660 300","660 270","660 240","660 210","450 240","480 240","540 240","570 240","600 240","510 240","330 240","390 240","360 240","300 240","270 240","240 240","240 210","240 180","240 150","600 210","600 180","600 150","540 150","480 150","270 150","300 150","360 150","390 150","420 150","450 150","510 150","570 150","330 150","660 150","660 180","630 150","660 450","660 510","660 480","660 540","630 540","570 540","540 540","510 540","480 540","450 540","600 540","180 150","210 150","180 180","180 210","180 240","180 270","180 300","180 330","180 360","180 420","180 450","180 390","180 480","210 540","240 540","300 540","330 540","360 540","390 540","270 540","180 510","180 540","450 570","450 600","390 570","390 600","360 600","330 600","300 600","240 600","270 600","210 600","210 570","150 540","120 540","90 540","30 570","30 540","60 540","120 600","150 600","90 600","60 600","690 150","750 150","780 150","810 120","810 150","720 150","810 180","810 210","810 240","780 240","750 240","720 240","690 240","810 60","810 30","750 30","660 30","780 30","720 30","690 30","630 30","630 60","630 90","630 120","600 30","570 30","540 30","510 30","480 30","450 30","450 60","450 90","450 120","390 90","390 60","390 30","390 120","360 30","330 30","270 30","240 30","210 30","300 30","210 60","210 90","210 120","180 30","120 30","90 30","60 30","30 30","150 30","30 60","30 150","30 120","90 150","150 150","120 150","60 150","30 180","30 210","30 240","60 240","90 240","120 240","150 240","690 540","720 540","750 540","810 570","810 540","780 540","720 600","690 600","780 600","750 600","690 630","690 690","690 660","630 570","630 600","600 600","570 600","540 600","510 600","480 600","570 630","570 660","570 720","540 720","570 690","450 720","480 720","510 720","450 750","390 750","390 720","360 720","330 720","300 720","270 720","270 630","270 660","270 690","210 630","210 660","210 690","210 720","180 720","150 720","150 690","150 660","150 630","120 720","90 720","60 720","30 720","30 780","60 780","90 780","120 780","180 780","210 780","30 750","150 780","240 780","270 780","300 780","360 780","390 780","420 780","480 780","510 780","540 780","570 780","600 780","660 780","630 630","630 660","630 720","630 690","660 720","690 720","720 720","750 720","780 720","810 720","810 750","810 810","810 840","810 780","720 780","630 780","690 780","780 780","750 780","450 780","330 780","30 810","90 840","120 840","150 840","60 840","30 840","180 840","210 840","240 840","270 840","300 840","390 810","390 840","360 840","330 840","420 840","450 810","450 840","510 840","540 840","600 840","630 840","660 840","750 840","780 840","720 840","690 840","570 840","480 840"]
+    pacball = ["810 90","30 90","810 600","30 600"]
+    ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#444f"
+    ctx.fillRect(0, 0 ,900,900)
+    BeginSong.play()
+    direction = 'north';
+    pacmancoordX = 420;
+    pacmancoordY = 600;
+    pacmanoldcoordX = 420;
+    pacmanoldcoordY = 600;
+    score = 0;
+    PacmanImageLoad('pacmanBO.png');
+    timermouvement = setInterval(function(){ActionTimer()},130);
+
+}
+
+function ActionTimer(){ //function that execute in loop
+    loadwall();
+    loadgraine();
+    loadpacball();
+    checkwinlosepacball();
+    if(pf == 0){bouche(1);pf = 1;
+    }else {pf = 0;bouche(0);};
+    checkwinlosepacball();
+    mangergraine();
+    for(i = 0;i<4;i++){phantom(i)};
+    checkwinlosepacball();
+    checktp();
+
+}
+
+function checkwinlosepacball(){//function check if pacman eat all the graine or phantom eat pacman and pacball time
+    if(graine.length == 0){
+        winlose("you win");
+    }
+    for(i = -1;i<=4;i++){
+        if(pacmantickpacball <= Math.round(pacmanpacballtime*25)){
+            if(phantomX[i] == pacmancoordX & phantomY[i] == pacmancoordY){
+                phantomX[i] = 300;
+                phantomY[i] = 390;
+                score = score + 100;
+            }
+        }else{
+            if(phantomX[i] == pacmancoordX & phantomY[i] == pacmancoordY){
+                winlose("you lose");
+            }
+        }
+    }
+    if(pacmantickpacball <= Math.round(pacmanpacballtime*25)){
+        pacmantickpacball++;
+    }
+}
+
+function checktp(){ //function check if phantom or pacman need to be teleport in the tunnel
+    if(pacmancoordX == 840 && pacmancoordY == 390){
+        pacmancoordX = 30;
+        pacmancoordY = 390;
+    }else if(pacmancoordX == 0 && pacmancoordY == 390){
+        pacmancoordX = 810;
+        pacmancoordY = 390;
+    }
+
+    for (i = -1;i != 4; i++) {
+        if(phantomX[i] == 840 && phantomY[i] == 390){
+           phantomX[i] = 30;
+           phantomY[i] = 390;
+        }else if(phantomX[i] == 0 && phantomY[i] == 390){
+           phantomX[i] = 810;
+           phantomY[i] = 390;
+        }
+    }
+
+}
+
+function winlose(message){ //function shortcut for win / lose message
+    direction = 'pause';
+    phantomX = [300,330,540,540];
+    phantomY = [390,390,390,390];
+    phantomoldX = [300,330,540,540];
+    phantomoldY = [390,390,390,390];
+    clearInterval(timermouvement);
+    ctx.fillStyle = "#00000070";
+    ctx.fillRect(230, 230 ,560,560);
+    ctx.fillStyle = "#777777";
+    ctx.font = "100px Arial";
+    ctx.fillText(message,230, 230);
+    ctx.fillText("score : "+score,230, 330);
+    WakaWaka.pause();
+
+}
+
+function random(min, max) {//random function
+  return Math.floor(Math.random() * (max - min) ) + min;
+}
+
+function bouche(num){//function for pacman move
+    pacmanoldcoordX = pacmancoordX
+    pacmanoldcoordY = pacmancoordY
+    ctx.fillStyle = "#444f"
+    WakaWaka.play()
+    if(direction == 'est'){
+        if(!wall.includes((pacmancoordX+pixel)+" "+pacmancoordY)){
+            pacmancoordX = pacmancoordX + pixel
+            if(num == 0){PacmanImageLoad('pacmanBO.png')}else{PacmanImageLoad('pacmanEst.png')}
+            ctx.fillRect(pacmanoldcoordX, pacmanoldcoordY ,pixel,pixel)
+        }else{WakaWaka.pause()}
+    }else if(direction == 'west'){
+        if(!wall.includes((pacmancoordX-pixel)+" "+pacmancoordY)){
+            pacmancoordX = pacmancoordX - pixel
+            if(num == 0){PacmanImageLoad('pacmanBO.png')}else{PacmanImageLoad('pacmanWest.png')}
+            ctx.fillRect(pacmanoldcoordX, pacmanoldcoordY ,pixel,pixel)
+            WakaWaka.play()
+        }else{WakaWaka.pause()}
+    }else if(direction == 'nord'){
+        if(!wall.includes(pacmancoordX+" "+(pacmancoordY-pixel))){
+            pacmancoordY = pacmancoordY - pixel
+            if(num == 0){PacmanImageLoad('pacmanBO.png')}else{PacmanImageLoad('pacmanNord.png')}
+            ctx.fillRect(pacmanoldcoordX, pacmanoldcoordY ,pixel,pixel)
+        }else{WakaWaka.pause()}
+    }else if(direction == 'sud'){
+        if(!wall.includes(pacmancoordX+" "+(pacmancoordY+pixel))){
+            pacmancoordY = pacmancoordY + pixel
+            if(num == 0){PacmanImageLoad('pacmanBO.png')}else{PacmanImageLoad('pacmanSud.png')}
+            ctx.fillRect(pacmanoldcoordX, pacmanoldcoordY ,pixel,pixel)
+            WakaWaka.play()
+        }else{WakaWaka.pause()}
+    }
+
+}
+
+function PacmanImageLoad(imgfile){//function for pacman to load image
+    pacmanimg.src = imgfile;
+    pacmanimg.onload = function(){ctx.drawImage(pacmanimg,pacmancoordX, pacmancoordY, pixel,pixel);}
+}
+
+function imagephantomload(num,hb){//function for phantom to load image
+    numcoord = num;
+    if(pacmantickpacball <= Math.round(pacmanpacballtime*25)){
+        numcoord = 10;
+        hb = "";
+    }
+    switch(num){
+        case 0:
+            phantom0img.src = "Phantom"+hb+numcoord+".png";
+            ctx.drawImage(phantom0img,phantomX[num],phantomY[num], pixel,pixel);
+            break;
+        case 1:
+            phantom1img.src = "Phantom"+hb+numcoord+".png";
+            ctx.drawImage(phantom1img,phantomX[num],phantomY[num], pixel,pixel);
+            break;
+        case 2:
+            phantom2img.src = "Phantom"+hb+numcoord+".png";
+            ctx.drawImage(phantom2img,phantomX[num],phantomY[num], pixel,pixel);
+            break;
+        case 3:
+            phantom3img.src = "Phantom"+hb+numcoord+".png";
+            ctx.drawImage(phantom3img,phantomX[num],phantomY[num], pixel,pixel);
+            break;
+    }
+}
+
+function phantom(num){ //function for phantom to move
+    phantomoldX[num] = phantomX[num]
+    phantomoldY[num] = phantomY[num]
+    ctx.fillStyle = "#444f"
+    if(directionphantom[num] == 'north'){
+        if(!wall.includes(phantomX[num]+" "+(phantomY[num]-pixel))){
+            phantomY[num]=phantomY[num]-pixel;
+            imagephantomload(num,"Haut");
+            ctx.fillRect(phantomoldX[num], phantomoldY[num] ,pixel,pixel)
+            if(graine.includes(phantomoldX[num]+" "+phantomoldY[num])){
+                ctx.fillStyle = "#ffff"
+                ctx.fillRect(phantomoldX[num]+10,phantomoldY[num]+10,pixel-20,pixel-20)
+            }
+            if(!wall.includes((phantomX[num]+pixel)+" "+phantomY[num])){
+                if(random(0,3) == 1){directionphantom[num]='est';}
+            }else if(!wall.includes((phantomX[num]-pixel)+" "+phantomY)){
+                if(random(0,3) == 1){directionphantom[num]='west';}
+            }
+        }else{if(random(0,2) == 1){directionphantom[num]='est';imagephantomload(num,"Haut");}else{directionphantom[num]='west';imagephantomload(num,"Haut");}}
+    }else if(directionphantom[num] == 'est'){
+        if(!wall.includes((phantomX[num]+pixel)+" "+phantomY[num])){
+            phantomX[num]=phantomX[num]+pixel;
+            imagephantomload(num,"Bas");
+            ctx.fillRect(phantomoldX[num], phantomoldY[num] ,pixel,pixel)
+            if(graine.includes(phantomoldX[num]+" "+phantomoldY[num])){
+                ctx.fillStyle = "#ffff"
+                ctx.fillRect(phantomoldX[num]+10,phantomoldY[num]+10,pixel-20,pixel-20)
+            }
+            if(!wall.includes(phantomX[num]+" "+(phantomY[num]-pixel))){
+                if(random(0,2) == 1){directionphantom[num]='north';}
+            }else if(!wall.includes(phantomX[num]+" "+(phantomY[num]+pixel))){
+                if(random(0,2) == 1){directionphantom[num]='sud';}
+            }
+        }else{if(random(0,2) == 1){directionphantom[num]='north';imagephantomload(num,"Bas");}else{directionphantom[num]='sud';imagephantomload(num,"Bas")}}
+    }else if(directionphantom[num] == 'sud'){
+        if(!wall.includes(phantomX[num]+" "+(phantomY[num]+pixel))){
+            phantomY[num]=phantomY[num]+pixel;
+            imagephantomload(num,"Bas");
+            ctx.fillRect(phantomoldX[num], phantomoldY[num] ,pixel,pixel)
+            if(graine.includes(phantomoldX[num]+" "+phantomoldY[num])){
+                ctx.fillStyle = "#ffff"
+                ctx.fillRect(phantomoldX[num]+10,phantomoldY[num]+10,pixel-20,pixel-20)
+            }
+            if(!wall.includes((phantomX[num]+pixel)+" "+phantomY[num])){
+                if(random(0,2) == 1){directionphantom[num]='est'}
+            }else if(!wall.includes((phantomX[num]-pixel)+" "+phantomY[num])){
+                if(random(0,2) == 1){directionphantom[num]='west'}
+            }
+        }else{if(random(0,2) == 1){directionphantom[num]='est';imagephantomload(num,"Bas");}else{directionphantom[num]='west';imagephantomload(num,"Bas");}}
+    }else if(directionphantom[num] == 'west'){
+        if(!wall.includes((phantomX[num]-pixel)+" "+phantomY[num])){
+            phantomX[num]=phantomX[num]-pixel;
+            imagephantomload(num,"Bas");
+            ctx.fillRect(phantomoldX[num], phantomoldY[num] ,pixel,pixel)
+            if(graine.includes(phantomoldX[num]+" "+phantomoldY[num])){
+                ctx.fillStyle = "#ffff"
+                ctx.fillRect(phantomoldX[num]+10,phantomoldY[num]+10,pixel-20,pixel-20)
+            }
+            if(!wall.includes(phantomX[num]+" "+(phantomY[num]-pixel))){
+                if(random(0,2) == 1){directionphantom[num]='north'}
+            }else if(!wall.includes(phantomX[num]+" "+(phantomY[num]+pixel))){
+                if(random(0,2) == 1){directionphantom[num]='sud'}
+            }
+        }else{if(random(0,2) == 1){directionphantom[num]='north';imagephantomload(num,"Bas");}else{directionphantom[num]='sud';imagephantomload(num,"Bas");}}
+    }
+}

@@ -1,0 +1,34 @@
+nav#Menu{
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  right: 0;
+  left: 0;
+  background: linear-gradient(90deg, rgb(82, 121, 9), rgb(0, 255, 1) ,rgb(126, 227, 161), rgb(11, 142, 30) );
+  padding: 17px 0px 17px 0px;
+}
+
+nav#Menu ul li{
+  list-style-type: none;
+}
+
+nav#Menu ul{
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  align-content: center;
+
+}
+
+nav#Menu > ul > li > a{
+  color: black;
+  text-decoration: none;
+  font-size: 35px;
+}
+
+@media (max-width: 500px) {
+  nav#Menu ul{
+    flex-direction: column;
+    text-align: center;
+  }
+}

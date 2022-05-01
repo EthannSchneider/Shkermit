@@ -1,0 +1,13 @@
+body, html{
+  padding: 0px;
+  margin: 0px;
+  font-family: arial;
+  background: radial-gradient(circle,darkgray 1%, black 30%);
+  height: 100%;
+  width: 100%;
+}
+
+#body{
+  color: white;
+  text-align: center;
+}
