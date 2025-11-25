@@ -3,6 +3,7 @@ import Home from "./pages/Home";
 import Header from "./components/header";
 import Footer from "./components/footer";
 import Picture from "./pages/Picture";
+import Games from "./pages/Games";
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/pictures" element={<Picture />} />
+        <Route path="/games" element={<Games />} />
       </Routes>
       <Footer />
     </BrowserRouter>
