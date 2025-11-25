@@ -1,5 +1,5 @@
 import { useState } from "react";
-import logo from "../assets/img/ShkermitRTX.png";
+import logo from "../assets/img/1 ShkermitRTX.png";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
