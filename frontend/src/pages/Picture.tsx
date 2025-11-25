@@ -9,6 +9,7 @@ import img8 from "../assets/img/8 Shkermlette.png";
 import img9 from "../assets/img/9 ShkermitDrinkIceTea.png";
 import img10 from "../assets/img/10 ShkermitAlcoolique.jpg";
 import img11 from "../assets/img/11 Shkermit MLG Thug Life WallPaper Modile.png";
+import img12 from "../assets/img/12 Old Shkermit.png";
 
 const images = [
   img1,
@@ -22,6 +23,7 @@ const images = [
   img9,
   img10,
   img11,
+  img12,
 ];
 
 export default function Picture() {
