@@ -14,6 +14,12 @@ const games: Game[] = [
     description: 'Click on Shkermit to earn shkermites! Upgrade your click power and automate your Shkermit production.',
     icon: '🖱️',
   },
+  {
+    path: '/games/snake',
+    name: 'Snake',
+    description: 'Classic snake game! Guide the snake to eat food and grow longer while avoiding collisions.',
+    icon: '🐍',
+  },
 ];
 
 export default function Games() {
