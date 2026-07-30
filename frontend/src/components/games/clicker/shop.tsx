@@ -25,7 +25,7 @@ const upgrades: Upgrade[] = [
     name: 'Shkermit Hand',
     namePlural: 'Shkermit Hands',
     description: '+1 click per second',
-    cost: 15,
+    cost: 150,
     clicksPerSecond: 1,
     image: img2
   },
@@ -34,7 +34,7 @@ const upgrades: Upgrade[] = [
     name: 'Shkermit Robot',
     namePlural: 'Shkermit Robots',
     description: '+5 clicks per second',
-    cost: 100,
+    cost: 1000,
     clicksPerSecond: 5,
     image: img4
   },
@@ -43,7 +43,7 @@ const upgrades: Upgrade[] = [
     name: 'Shkermit Factory',
     namePlural: 'Shkermit Factories',
     description: '+20 clicks per second',
-    cost: 500,
+    cost: 5000,
     clicksPerSecond: 20,
     image: img5
   },
@@ -52,7 +52,7 @@ const upgrades: Upgrade[] = [
     name: 'Shkermite Swarm',
     namePlural: 'Shkermite Swarms',
     description: '+50 clicks per second',
-    cost: 2000,
+    cost: 20000,
     clicksPerSecond: 50,
     image: img3
   },

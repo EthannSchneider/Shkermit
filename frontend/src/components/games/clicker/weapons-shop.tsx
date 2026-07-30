@@ -25,7 +25,7 @@ const weapons: Weapon[] = [
     name: 'Power Glove',
     namePlural: 'Power Gloves',
     description: '+5 shkermites per click',
-    cost: 50,
+    cost: 500,
     shkermitesPerClick: 5,
     image: img8
   },
@@ -34,7 +34,7 @@ const weapons: Weapon[] = [
     name: 'Hammer',
     namePlural: 'Hammers',
     description: '+20 shkermites per click',
-    cost: 200,
+    cost: 2000,
     shkermitesPerClick: 20,
     image: img6
   },
@@ -43,7 +43,7 @@ const weapons: Weapon[] = [
     name: 'Machine Gun',
     namePlural: 'Machine Guns',
     description: '+100 shkermites per click',
-    cost: 1000,
+    cost: 10000,
     shkermitesPerClick: 100,
     image: img7
   },
@@ -52,7 +52,7 @@ const weapons: Weapon[] = [
     name: 'Laser Gun',
     namePlural: 'Laser Guns',
     description: '+500 shkermites per click',
-    cost: 5000,
+    cost: 50000,
     shkermitesPerClick: 500,
     image: img1
   },
@@ -61,7 +61,7 @@ const weapons: Weapon[] = [
     name: 'Nuke',
     namePlural: 'Nukes',
     description: '+2000 shkermites per click',
-    cost: 20000,
+    cost: 200000,
     shkermitesPerClick: 2000,
     image: img7
   },
