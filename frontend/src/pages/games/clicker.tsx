@@ -16,6 +16,7 @@ type Upgrade = {
 
 export default function ShkermitClicker() {
   const [score, setScore] = useState(0);
+  const [shkermitesPerClick, setShkermitesPerClick] = useState(1);
   const [clicksPerSecond, setClicksPerSecond] = useState(0);
   const [unlockedUpgrades, setUnlockedUpgrades] = useState<string[]>([]);
 
@@ -58,6 +59,13 @@ export default function ShkermitClicker() {
     setScore(prev => prev + 1);
   };
 
+  const resetGame = () => {
+    setScore(0);
+    setClicksPerSecond(0);
+    setShkermitesPerClick(1);
+    setUnlockedUpgrades([]);
+  };
+
   const purchaseUpgrade = (upgrade: Upgrade) => {
     if (score >= upgrade.cost && !unlockedUpgrades.includes(upgrade.id)) {
       setScore(prev => prev - upgrade.cost);
@@ -82,9 +90,9 @@ export default function ShkermitClicker() {
           ⭐ Shkermit Clicker ⭐
         </h1>
 
-        <div className="flex flex-col lg:flex-row gap-8 justify-center items-start">
+        <div className="flex flex-col lg:flex-row gap-8 justify-center lg:items-start items-center-safe">
           <div className="flex flex-col items-center gap-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 shadow-2xl">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 shadow-2xl w-full flex flex-col">
               <div className="text-6xl mb-4">🖱️</div>
               <img
                 src={img1}
@@ -100,11 +108,15 @@ export default function ShkermitClicker() {
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 shadow-xl">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 shadow-xl w-full">
               <h3 className="text-xl font-bold mb-3 text-purple-300">Stats</h3>
               <p className="text-2xl">
                 Per second:
                 <span className="text-green-400 font-bold">{clicksPerSecond.toLocaleString()}</span>
+              </p>
+              <p className="text-2xl">
+                Per click:
+                <span className="text-green-400 font-bold">{shkermitesPerClick.toLocaleString()}</span>
               </p>
               <p className="text-sm text-gray-400 mt-1">
                 Shkermites per second = Clicks per second
@@ -163,16 +175,15 @@ export default function ShkermitClicker() {
             <div className="mt-6 bg-white/10 backdrop-blur-sm rounded-2xl p-4 shadow-xl">
               <div className="flex justify-between items-center">
                 <button
-                  onClick={() => setScore(0)}
-                  className="bg-red-500/50 hover:bg-red-500/70 text-white px-4 py-2 rounded-lg transition-colors"
+                  onClick={() => resetGame()}
+                  className="bg-linear-to-br from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white px-5 py-3 rounded-lg shadow-lg hover:shadow-red-500/50 transition-all duration-300 transform hover:scale-105 ring-2 ring-red-400/50"
                 >
                   Reset Game 🔄
                 </button>
-                <button
-                  onClick={() => setScore(prev => prev + 100)}
-                  className="bg-blue-500/50 hover:bg-blue-500/70 text-white px-4 py-2 rounded-lg transition-colors"
+                <button // TODO: add an effect
+                  className="bg-linear-to-br from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-6 py-3 rounded-lg shadow-lg hover:shadow-blue-500/50 transition-all duration-300 transform hover:scale-105 ring-2 ring-blue-400/50 active:scale-95"
                 >
-                  Cheat +100 🎁
+                  ✨ Open a Crate ✨
                 </button>
               </div>
             </div>
