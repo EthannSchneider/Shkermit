@@ -4,6 +4,7 @@ import Header from "./components/header";
 import Footer from "./components/footer";
 import Picture from "./pages/Picture";
 import Games from "./pages/Games";
+import ShkermitClicker from "./pages/games/clicker";
 
 function App() {
   return (
@@ -12,7 +13,10 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/pictures" element={<Picture />} />
-        <Route path="/games" element={<Games />} />
+        <Route path="/games">
+          <Route index element={<Games />} />
+          <Route path="clicker" element={<ShkermitClicker />} />
+        </Route>
       </Routes>
       <Footer />
     </BrowserRouter>
