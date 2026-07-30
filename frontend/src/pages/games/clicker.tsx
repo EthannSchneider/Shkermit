@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import img1 from "@/assets/img/1 ShkermitRTX.png";
 import img2 from "@/assets/img/2 Shkermit RTX PDP.png";
 import img3 from "@/assets/img/3 TeteShkermit RTX.png";
@@ -19,6 +19,28 @@ export default function ShkermitClicker() {
   const [shkermitesPerClick, setShkermitesPerClick] = useState(1);
   const [clicksPerSecond, setClicksPerSecond] = useState(0);
   const [unlockedUpgrades, setUnlockedUpgrades] = useState<string[]>([]);
+  const initialLoadRef = useRef(true);
+
+
+  useEffect(() => {
+    const loadSaved = () => {
+      const savedGame = localStorage.getItem('shkermitClicker');
+      if (savedGame) {
+        try {
+          const parsed = JSON.parse(savedGame);
+          setScore(parsed.score || 0);
+          setClicksPerSecond(parsed.clicksPerSecond || 0);
+          setUnlockedUpgrades(parsed.unlockedUpgrades || []);
+        } catch (error) {
+          console.error('Failed to load saved game:', error);
+        }
+      }
+    };
+    if (initialLoadRef.current) {
+      loadSaved();
+      initialLoadRef.current = false;
+    }
+  }, []);
 
   const upgrades: Upgrade[] = [
     {
@@ -64,6 +86,7 @@ export default function ShkermitClicker() {
     setClicksPerSecond(0);
     setShkermitesPerClick(1);
     setUnlockedUpgrades([]);
+    localStorage.removeItem('shkermitClicker');
   };
 
   const purchaseUpgrade = (upgrade: Upgrade) => {
@@ -82,6 +105,15 @@ export default function ShkermitClicker() {
     }, 1000);
     return () => clearInterval(interval);
   }, [clicksPerSecond]);
+
+  useEffect(() => {
+    const gameData = JSON.stringify({
+      score,
+      clicksPerSecond,
+      unlockedUpgrades,
+    });
+    localStorage.setItem('shkermitClicker', gameData);
+  }, [score, clicksPerSecond, unlockedUpgrades]);
 
   return (
     <div className="min-h-screen bg-linear-to-b from-purple-900 via-indigo-900 to-black text-white p-8">
