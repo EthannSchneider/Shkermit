@@ -43,13 +43,21 @@ export default function ShkermitClicker() {
     localStorage.removeItem('shkermitClicker');
   };
 
-  const purchaseUpgrade = (upgrade: Upgrade) => {
-    if (score >= upgrade.cost && !unlockedUpgrades.includes(upgrade.id)) {
+   const purchaseUpgrade = (upgrade: Upgrade) => {
+    if (score >= upgrade.cost) {
       setScore(prev => prev - upgrade.cost);
       setUnlockedUpgrades([...unlockedUpgrades, upgrade.id]);
       setClicksPerSecond(prev => prev + upgrade.clicksPerSecond);
     }
   };
+
+  const upgradeCounts: Record<string, number> = unlockedUpgrades.reduce(
+    (acc, id) => {
+      acc[id] = (acc[id] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -84,7 +92,7 @@ export default function ShkermitClicker() {
           </div>
 
           <div className="flex-1 max-w-md">
-            <Shop score={score} unlockedUpgrades={unlockedUpgrades} onPurchase={purchaseUpgrade} />
+            <Shop score={score} upgradeCounts={upgradeCounts} onPurchase={purchaseUpgrade} />
             <Buttons onReset={resetGame} />
           </div>
         </div>
