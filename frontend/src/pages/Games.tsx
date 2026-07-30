@@ -5,6 +5,7 @@ type Game = {
   name: string;
   description: string;
   icon: string;
+  available: boolean;
 };
 
 const games: Game[] = [
@@ -13,12 +14,28 @@ const games: Game[] = [
     name: 'Shkermit Clicker',
     description: 'Click on Shkermit to earn shkermites! Upgrade your click power and automate your Shkermit production.',
     icon: '🖱️',
+    available: true
   },
   {
     path: '/games/snake',
     name: 'Snake',
     description: 'Classic snake game! Guide the snake to eat food and grow longer while avoiding collisions.',
     icon: '🐍',
+    available: true
+  },
+  {
+    path: '/games/tetris',
+    name: 'Tetris',
+    description: 'Classic block-stacking puzzle! Arrange falling tetrominoes to complete lines and score points.',
+    icon: '🎮',
+    available: false
+  },
+  {
+    path: '/games/pacman',
+    name: 'Pac-Man',
+    description: 'Maze-chasing classic! Guide Pac-Man through the maze collecting dots while avoiding ghosts.',
+    icon: '👻',
+    available: false
   },
 ];
 
@@ -38,37 +55,23 @@ export default function Games() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {games.map((game) => (
-            <div
-              key={game.path}
-              onClick={() => navigate(game.path)}
-              className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 shadow-xl cursor-pointer transition-all duration-200 hover:scale-105 hover:bg-white/20 border border-purple-400/50"
-            >
-              <div className="text-6xl mb-4 text-center">{game.icon}</div>
-              <h2 className="text-2xl font-bold text-center mb-3 text-purple-300">{game.name}</h2>
-              <p className="text-gray-300 text-center leading-relaxed">{game.description}</p>
-              <div className="mt-4 text-center">
-                <span className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-bold">
-                  Play Now →
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-
         <div className="mt-16 text-center">
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 inline-block max-w-2xl">
             <h3 className="text-2xl font-bold mb-4 text-purple-300">🎮 Available Games</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {games.map((game) => (
                 <div
                   key={game.path}
-                  onClick={() => navigate(game.path)}
-                  className="bg-white/5 rounded-xl p-4 cursor-pointer hover:bg-white/10 transition-colors text-center"
+                  onClick={() => {
+                    if (game.available) navigate(game.path);
+                  }}
+                  className="bg-white/5 rounded-xl p-4 cursor-pointer hover:bg-white/10 transition-colors text-center flex flex-col justify-between h-40 w-40"
                 >
                   <div className="text-3xl mb-2">{game.icon}</div>
                   <div className="text-sm font-bold">{game.name}</div>
+                  <div className={`text-xs font-bold mt-2 px-3 py-1 rounded ${game.available ? 'bg-purple-600' : 'bg-yellow-600'}`}>
+                    {game.available ? 'Play Now' : 'Planned'}
+                  </div>
                 </div>
               ))}
             </div>
