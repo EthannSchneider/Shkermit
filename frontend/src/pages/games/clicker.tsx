@@ -43,6 +43,7 @@ export default function ShkermitClicker() {
     setClicksPerSecond(0);
     setShkermitesPerClick(1);
     setUnlockedUpgrades([]);
+    setUnlockedWeapons([]);
     localStorage.removeItem('shkermitClicker');
   };
 
