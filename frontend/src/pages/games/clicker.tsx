@@ -32,7 +32,7 @@ export default function ShkermitClicker() {
     }
   }, []);
   const handleMainClick = () => {
-    setScore(prev => prev + 1);
+    setScore(prev => prev + shkermitesPerClick);
   };
 
   const resetGame = () => {
@@ -73,9 +73,10 @@ export default function ShkermitClicker() {
       score,
       clicksPerSecond,
       unlockedUpgrades,
+      shkermitesPerClick,
     });
     localStorage.setItem('shkermitClicker', gameData);
-  }, [score, clicksPerSecond, unlockedUpgrades]);
+  }, [score, clicksPerSecond, unlockedUpgrades, shkermitesPerClick]);
 
   return (
     <div className="min-h-screen bg-linear-to-b from-purple-900 via-indigo-900 to-black text-white p-8">
