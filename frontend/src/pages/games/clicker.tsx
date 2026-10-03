@@ -4,6 +4,7 @@ import Stats from '../../components/games/clicker/stats';
 import Shop, { type Upgrade } from '../../components/games/clicker/shop';
 import WeaponsShop, { type Weapon } from '../../components/games/clicker/weapons-shop';
 import Buttons from '../../components/games/clicker/buttons';
+import Victory, { VICTORY_COST } from '../../components/games/clicker/victory';
 
 export default function ShkermitClicker() {
   const [score, setScore] = useState(0);
@@ -11,6 +12,8 @@ export default function ShkermitClicker() {
   const [clicksPerSecond, setClicksPerSecond] = useState(0);
   const [unlockedUpgrades, setUnlockedUpgrades] = useState<string[]>([]);
   const [unlockedWeapons, setUnlockedWeapons] = useState<string[]>([]);
+  const [hasWon, setHasWon] = useState(false);
+  const [showVictory, setShowVictory] = useState(false);
   const initialLoadRef = useRef(true);
 
 
@@ -22,8 +25,10 @@ export default function ShkermitClicker() {
           const parsed = JSON.parse(savedGame);
           setScore(parsed.score || 0);
           setClicksPerSecond(parsed.clicksPerSecond || 0);
+          setShkermitesPerClick(parsed.shkermitesPerClick || 1);
           setUnlockedUpgrades(parsed.unlockedUpgrades || []);
           setUnlockedWeapons(parsed.unlockedWeapons || []);
+          setHasWon(parsed.hasWon === true);
         } catch (error) {
           console.error('Failed to load saved game:', error);
         }
@@ -44,7 +49,17 @@ export default function ShkermitClicker() {
     setShkermitesPerClick(1);
     setUnlockedUpgrades([]);
     setUnlockedWeapons([]);
+    setHasWon(false);
+    setShowVictory(false);
     localStorage.removeItem('shkermitClicker');
+  };
+
+  const purchaseVictory = () => {
+    if (score < VICTORY_COST || hasWon) return;
+
+    setScore(prev => prev - VICTORY_COST);
+    setHasWon(true);
+    setShowVictory(true);
   };
 
    const purchaseUpgrade = (upgrade: Upgrade) => {
@@ -103,9 +118,10 @@ export default function ShkermitClicker() {
        unlockedUpgrades,
        unlockedWeapons,
        shkermitesPerClick,
+       hasWon,
      });
      localStorage.setItem('shkermitClicker', gameData);
-   }, [score, clicksPerSecond, unlockedUpgrades, unlockedWeapons, shkermitesPerClick]);
+   }, [score, clicksPerSecond, unlockedUpgrades, unlockedWeapons, shkermitesPerClick, hasWon]);
 
   return (
     <div className="min-h-screen bg-linear-to-b from-purple-900 via-indigo-900 to-black text-white p-8">
@@ -126,6 +142,14 @@ export default function ShkermitClicker() {
             <div className="mt-4">
               <WeaponsShop score={score} weaponCounts={weaponCounts} onPurchase={handlePurchase} />
             </div>
+            <Victory
+              score={score}
+              hasWon={hasWon}
+              showCelebration={showVictory}
+              onPurchase={purchaseVictory}
+              onDismiss={() => setShowVictory(false)}
+              onReset={resetGame}
+            />
             <Buttons onReset={resetGame} />
           </div>
         </div>
