@@ -33,29 +33,38 @@ const upgrades: Upgrade[] = [
     id: 'upgrade2',
     name: 'Shkermit Robot',
     namePlural: 'Shkermit Robots',
-    description: '+5 clicks per second',
+    description: '+8 clicks per second',
     cost: 1000,
-    clicksPerSecond: 5,
+    clicksPerSecond: 8,
     image: img4
   },
   {
     id: 'upgrade3',
     name: 'Shkermit Factory',
     namePlural: 'Shkermit Factories',
-    description: '+20 clicks per second',
+    description: '+45 clicks per second',
     cost: 5000,
-    clicksPerSecond: 20,
+    clicksPerSecond: 45,
     image: img5
   },
   {
     id: 'shkermite',
     name: 'Shkermite Swarm',
     namePlural: 'Shkermite Swarms',
-    description: '+50 clicks per second',
-    cost: 20000,
-    clicksPerSecond: 50,
+    description: '+500 clicks per second',
+    cost: 29000,
+    clicksPerSecond: 500,
     image: img3
   },
+  {
+    id: 'shkermite2',
+    name: 'Shkermite Impregnation',
+    namePlural: 'Shkermite Impregnations',
+    description: '+6767 clicks per second',
+    cost: 10000000,
+    clicksPerSecond: 6767,
+    image: img2
+  }
 ];
 
 export default function Shop({ score, upgradeCounts, onPurchase }: ShopProps) {
