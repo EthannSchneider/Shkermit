@@ -25,10 +25,10 @@ const games: Game[] = [
   },
   {
     path: '/games/tetris',
-    name: 'Tetris',
-    description: 'Classic block-stacking puzzle! Arrange falling tetrominoes to complete lines and score points.',
-    icon: '🎮',
-    available: false
+    name: 'Shkermit Stacks',
+    description: 'A Shkermit-powered solo block-stacking challenge with combos and special abilities.',
+    icon: '🧩',
+    available: true
   },
   {
     path: '/games/pacman',
