@@ -32,9 +32,8 @@ COPY --chown=node:node backend/ ./
 COPY --from=frontend-build --chown=node:node /build/frontend/dist ./public
 
 RUN mkdir -p data/files/pictures/uploads \
-    && chown -R node:node data public
+    && chown -R root:root data public
 
-USER node
 EXPOSE 3001
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
