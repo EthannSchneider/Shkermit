@@ -7,22 +7,31 @@ import Games from "./pages/Games";
 import ShkermitClicker from "./pages/games/clicker";
 import SnakeGame from "./pages/games/snake";
 import TetrisGame from "./pages/games/tetris";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Account from "./pages/Account";
+import { AuthProvider } from "./context/AuthContext";
 
 function App() {
   return (
     <BrowserRouter>
-      <Header />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/pictures" element={<Picture />} />
-        <Route path="/games">
-          <Route index element={<Games />} />
-          <Route path="clicker" element={<ShkermitClicker />} />
-          <Route path="snake" element={<SnakeGame />} />
-          <Route path="tetris" element={<TetrisGame />} />
-        </Route>
-      </Routes>
-      <Footer />
+      <AuthProvider>
+        <Header />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/pictures" element={<Picture />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/account" element={<Account />} />
+          <Route path="/games">
+            <Route index element={<Games />} />
+            <Route path="clicker" element={<ShkermitClicker />} />
+            <Route path="snake" element={<SnakeGame />} />
+            <Route path="tetris" element={<TetrisGame />} />
+          </Route>
+        </Routes>
+        <Footer />
+      </AuthProvider>
     </BrowserRouter>
   );
 }

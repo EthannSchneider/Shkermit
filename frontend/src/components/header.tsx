@@ -1,8 +1,56 @@
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import logo from "../assets/img/1 ShkermitRTX.png";
+import { useAuth } from "../context/auth-context";
+
+type AccountLinksProps = {
+  loading: boolean;
+  loggingOut: boolean;
+  mobile?: boolean;
+  username?: string;
+  onLogout: () => void;
+  onNavigate: () => void;
+};
+
+function AccountLinks({
+  loading,
+  loggingOut,
+  mobile = false,
+  username,
+  onLogout,
+  onNavigate,
+}: AccountLinksProps) {
+  const linkClass = mobile
+    ? "block text-lg text-white hover:underline"
+    : "text-lg text-white hover:underline";
+
+  if (loading) return null;
+  if (username) {
+    return (
+      <>
+        <Link to="/account" className={linkClass} onClick={onNavigate}>
+          {username}
+        </Link>
+        <button className={`${linkClass} cursor-pointer`} onClick={onLogout} disabled={loggingOut}>
+          {loggingOut ? "Logging out…" : "Logout"}
+        </button>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Link to="/login" className={linkClass} onClick={onNavigate}>Login</Link>
+      <Link to="/register" className={`${linkClass} account-cta`} onClick={onNavigate}>Register</Link>
+    </>
+  );
+}
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const { user, loading, logout } = useAuth();
+  const navigate = useNavigate();
 
   const MenuItems = [
     { name: "Home", href: "/" },
@@ -10,9 +58,20 @@ export default function Header() {
     { name: "Pictures", href: "/pictures" },
   ];
 
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await logout();
+      setOpen(false);
+      navigate("/");
+    } finally {
+      setLoggingOut(false);
+    }
+  }
+
   return (
     <header className="flex items-center justify-between p-4 bg-green-900 sticky top-0 z-20">
-      <a href="/">
+      <Link to="/">
         <div className="flex items-center gap-3">
           <img
             src={logo}
@@ -21,21 +80,30 @@ export default function Header() {
           />
           <h1 className="text-2xl font-bold">Shkermit</h1>
         </div>
-      </a>
+      </Link>
 
       {/* Desktop nav */}
       <nav className="hidden md:block">
-        <ul className="flex gap-4">
+        <ul className="flex items-center gap-4">
           {MenuItems.map((item) => (
             <li key={item.name}>
-              <a
-                href={item.href}
+              <Link
+                to={item.href}
                 className="text-lg text-white hover:underline"
               >
                 {item.name}
-              </a>
+              </Link>
             </li>
           ))}
+          <li className="flex items-center gap-4">
+            <AccountLinks
+              loading={loading}
+              loggingOut={loggingOut}
+              username={user?.username}
+              onLogout={handleLogout}
+              onNavigate={() => setOpen(false)}
+            />
+          </li>
         </ul>
       </nav>
 
@@ -89,15 +157,25 @@ export default function Header() {
         <ul className="flex flex-col gap-2 p-4">
           {MenuItems.map((item) => (
             <li key={item.name}>
-              <a
-                href={item.href}
+              <Link
+                to={item.href}
                 className="block text-lg text-white hover:underline"
                 onClick={() => setOpen(false)}
               >
                 {item.name}
-              </a>
+              </Link>
             </li>
           ))}
+          <li className="flex flex-col items-start gap-2">
+            <AccountLinks
+              loading={loading}
+              loggingOut={loggingOut}
+              mobile
+              username={user?.username}
+              onLogout={handleLogout}
+              onNavigate={() => setOpen(false)}
+            />
+          </li>
         </ul>
       </div>
     </header>
