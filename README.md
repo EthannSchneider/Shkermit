@@ -50,6 +50,8 @@ Copy `backend/.env.example` to `backend/.env` if you need to change the defaults
 
 Email links use `APP_URL`, which should be the public frontend origin. Configure delivery with `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`. In development, leaving `SMTP_HOST` empty prints the confirmation URL in the backend console. Production startup fails when `SMTP_HOST` is missing so accounts cannot silently become unverifiable.
 
+The picture gallery is database-backed and can be managed at `/admin/pictures`. Set `ADMIN_EMAILS` to a comma-separated list of verified account email addresses (for example, `ADMIN_EMAILS=owner@example.com,editor@example.com`). Those users receive the admin navigation and can upload, edit, reorder, replace, and delete pictures. Uploads accept JPEG, PNG, WebP, and GIF files up to 5 MB. Image files are stored in `backend/data/files/pictures/` by default while SQLite stores only metadata; `PICTURE_UPLOAD_DIR` can override that location. Back up both the database and upload directory in production.
+
 ### Database migrations
 
 The Prisma schema at `backend/prisma/schema.prisma` is the source of truth. Do not edit generated migration SQL after it has been committed.

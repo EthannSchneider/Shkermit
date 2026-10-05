@@ -11,6 +11,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Account from "./pages/Account";
 import VerifyEmail from "./pages/VerifyEmail";
+import AdminPictures from "./pages/AdminPictures";
 import { AuthProvider } from "./context/AuthContext";
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/account" element={<Account />} />
+          <Route path="/admin/pictures" element={<AdminPictures />} />
           <Route path="/games">
             <Route index element={<Games />} />
             <Route path="clicker" element={<ShkermitClicker />} />

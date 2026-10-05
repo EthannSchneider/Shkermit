@@ -44,3 +44,19 @@ model Session {
   @@index([expiresAt])
   @@map("sessions")
 }
+
+model Picture {
+  id        Int      @id @default(autoincrement())
+  title     String
+  altText   String   @map("alt_text")
+  assetKey  String?  @unique @map("asset_key")
+  storageKey String?  @unique @map("storage_key")
+  mimeType  String?  @map("mime_type")
+  filename  String?
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([position])
+  @@map("pictures")
+}

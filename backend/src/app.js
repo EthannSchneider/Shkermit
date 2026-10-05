@@ -3,19 +3,25 @@ import express from "express";
 import helmet from "helmet";
 import { createAccountController } from "./controllers/account.controller.js";
 import { createAuthController } from "./controllers/auth.controller.js";
+import { createPictureController } from "./controllers/picture.controller.js";
 import { createAuthenticationMiddleware } from "./middleware/authenticate.js";
 import { createAuthRateLimit } from "./middleware/auth-rate-limit.js";
+import { requireAdmin } from "./middleware/require-admin.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { createSessionModel } from "./models/session.model.js";
 import { createEmailVerificationModel } from "./models/email-verification.model.js";
 import { createUserModel } from "./models/user.model.js";
+import { createPictureModel } from "./models/picture.model.js";
 import { createAccountRouter } from "./routes/account.routes.js";
 import { createAuthRouter } from "./routes/auth.routes.js";
 import { createHealthRouter } from "./routes/health.routes.js";
+import { createPictureRouter } from "./routes/picture.routes.js";
 import { createAccountService } from "./services/account.service.js";
 import { createAuthService } from "./services/auth.service.js";
 import { createSessionService, sessionCookieOptions } from "./services/session.service.js";
 import { createEmailVerificationService } from "./services/email-verification.service.js";
+import { createPictureService } from "./services/picture.service.js";
+import { createPictureStorage } from "./services/picture-storage.service.js";
 
 export function createApp({
   db,
@@ -23,18 +29,22 @@ export function createApp({
   emailVerificationTtlMs,
   appUrl,
   mailer,
+  adminEmails = [],
+  pictureUploadDirectory = "data/files/pictures",
   isProduction = false,
 }) {
   const app = express();
 
-  const userModel = createUserModel(db);
+  const userModel = createUserModel(db, { adminEmails });
   const sessionModel = createSessionModel(db);
   const emailVerificationModel = createEmailVerificationModel(db);
+  const pictureModel = createPictureModel(db);
+  const pictureStorage = createPictureStorage(pictureUploadDirectory);
   const sessionService = createSessionService({ sessionModel, sessionTtlMs });
   const withTransaction = (work) =>
     db.$transaction((transaction) =>
       work({
-        userModel: createUserModel(transaction),
+        userModel: createUserModel(transaction, { adminEmails }),
         sessionModel: createSessionModel(transaction),
         emailVerificationModel: createEmailVerificationModel(transaction),
       }),
@@ -58,11 +68,13 @@ export function createApp({
     emailVerificationService,
     withTransaction,
   });
+  const pictureService = createPictureService({ pictureModel, pictureStorage });
   const cookieOptions = sessionCookieOptions(sessionTtlMs, isProduction);
   const authRateLimit = createAuthRateLimit(isProduction);
   const requireAuth = createAuthenticationMiddleware({ sessionService, userModel });
   const authController = createAuthController({ authService, cookieOptions });
   const accountController = createAccountController({ accountService, cookieOptions });
+  const pictureController = createPictureController({ pictureService });
 
   app.disable("x-powered-by");
   app.use(helmet());
@@ -77,6 +89,10 @@ export function createApp({
   app.use(
     "/api/account",
     createAccountRouter({ controller: accountController, authRateLimit, requireAuth }),
+  );
+  app.use(
+    "/api/pictures",
+    createPictureRouter({ controller: pictureController, requireAuth, requireAdmin }),
   );
 
   app.use(errorHandler);

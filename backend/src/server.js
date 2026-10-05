@@ -20,6 +20,13 @@ const emailVerificationTtlMs = emailVerificationTtlHours * 60 * 60 * 1000;
 const databaseUrl = process.env.DATABASE_URL ?? `file:${defaultDatabasePath}`;
 const isProduction = process.env.NODE_ENV === "production";
 const appUrl = process.env.APP_URL ?? "http://localhost:5173";
+const pictureUploadDirectory = path.resolve(
+  process.env.PICTURE_UPLOAD_DIR ?? path.resolve(sourceDirectory, "../data/files/pictures"),
+);
+const adminEmails = (process.env.ADMIN_EMAILS ?? "")
+  .split(",")
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
 const smtpPort = Number.parseInt(process.env.SMTP_PORT ?? "587", 10);
 const mailer = createMailer({
   isProduction,
@@ -43,6 +50,8 @@ const app = createApp({
   emailVerificationTtlMs,
   appUrl,
   mailer,
+  adminEmails,
+  pictureUploadDirectory,
   isProduction,
 });
 

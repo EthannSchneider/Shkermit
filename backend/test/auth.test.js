@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -46,6 +46,8 @@ before(async () => {
         sentEmails.push(message);
       },
     },
+    adminEmails: ["admin@example.com"],
+    pictureUploadDirectory: path.join(testDirectory, "files", "pictures"),
   });
 });
 
@@ -198,6 +200,72 @@ test("updates profile and password while invalidating older sessions", async () 
     password: "StrongPass123",
   });
   assert.equal(oldPassword.status, 401);
+});
+
+test("lets administrators manage pictures while protecting write operations", async () => {
+  const publicGallery = await request(app).get("/api/pictures");
+  assert.equal(publicGallery.status, 200);
+  assert.equal(publicGallery.body.pictures.length, 12);
+  assert.equal(publicGallery.body.pictures[0].assetKey, "img1");
+
+  const regularAgent = request.agent(app);
+  await regularAgent.post("/api/auth/login").send({
+    identifier: "SwampFan",
+    password: "EvenStronger456",
+  });
+  assert.equal(
+    (await regularAgent.delete(`/api/pictures/${publicGallery.body.pictures[0].id}`)).status,
+    403,
+  );
+
+  const adminAgent = request.agent(app);
+  await adminAgent.post("/api/auth/register").send({
+    username: "GalleryAdmin",
+    email: "admin@example.com",
+    password: "AdminPassword123",
+  });
+  const verification = await adminAgent.post("/api/auth/verify-email").send({
+    token: latestTokenFor("admin@example.com"),
+  });
+  assert.equal(verification.status, 200);
+  assert.equal(verification.body.user.isAdmin, true);
+
+  const image = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+  const created = await adminAgent
+    .post("/api/pictures")
+    .field("title", "Test picture")
+    .field("altText", "A test gallery picture")
+    .attach("image", image, { filename: "test.png", contentType: "image/png" });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.picture.title, "Test picture");
+  assert.equal(created.body.picture.position, 12);
+  const storedPicture = await db.picture.findUnique({ where: { id: created.body.picture.id } });
+  assert.ok(storedPicture.storageKey);
+  const storedFile = path.join(testDirectory, "files", "pictures", storedPicture.storageKey);
+  assert.equal(existsSync(storedFile), true);
+
+  const content = await request(app).get(`/api/pictures/${created.body.picture.id}/content`);
+  assert.equal(content.status, 200);
+  assert.equal(content.headers["content-type"], "image/png");
+  assert.deepEqual(content.body, image);
+
+  const updated = await adminAgent
+    .patch(`/api/pictures/${created.body.picture.id}`)
+    .field("title", "Updated picture")
+    .field("altText", "Updated alternative text");
+  assert.equal(updated.status, 200);
+  assert.equal(updated.body.picture.title, "Updated picture");
+
+  const moved = await adminAgent
+    .patch(`/api/pictures/${created.body.picture.id}/position`)
+    .send({ direction: "up" });
+  assert.equal(moved.status, 200);
+  assert.equal(moved.body.pictures[11].id, created.body.picture.id);
+  assert.equal(moved.body.pictures[11].position, 11);
+
+  assert.equal((await adminAgent.delete(`/api/pictures/${created.body.picture.id}`)).status, 204);
+  assert.equal(existsSync(storedFile), false);
+  assert.equal((await request(app).get(`/api/pictures/${created.body.picture.id}/content`)).status, 404);
 });
 
 test("requires a password before deleting an account", async () => {

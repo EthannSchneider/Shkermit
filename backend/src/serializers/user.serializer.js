@@ -4,6 +4,7 @@ export function publicUser(user) {
     username: user.username,
     email: user.email,
     emailVerified: Boolean(user.emailVerifiedAt),
+    isAdmin: Boolean(user.isAdmin),
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };

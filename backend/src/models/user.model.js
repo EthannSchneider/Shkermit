@@ -1,35 +1,41 @@
-export function createUserModel(prisma) {
+export function createUserModel(prisma, { adminEmails = [] } = {}) {
+  const adminEmailSet = new Set(adminEmails.map((email) => email.toLowerCase()));
+  const withRole = (user) => user && ({
+    ...user,
+    isAdmin: Boolean(user.emailVerifiedAt) && adminEmailSet.has(user.email.toLowerCase()),
+  });
+
   return {
-    create({ username, email, passwordHash }) {
-      return prisma.user.create({
+    async create({ username, email, passwordHash }) {
+      return withRole(await prisma.user.create({
         data: {
           username,
           usernameKey: username.toLowerCase(),
           email,
           passwordHash,
         },
-      });
+      }));
     },
 
-    findById(id) {
-      return prisma.user.findUnique({ where: { id } });
+    async findById(id) {
+      return withRole(await prisma.user.findUnique({ where: { id } }));
     },
 
-    findByIdentifier(identifier) {
+    async findByIdentifier(identifier) {
       const identityKey = identifier.toLowerCase();
-      return prisma.user.findFirst({
+      return withRole(await prisma.user.findFirst({
         where: {
           OR: [{ email: identityKey }, { usernameKey: identityKey }],
         },
-      });
+      }));
     },
 
-    findByEmail(email) {
-      return prisma.user.findUnique({ where: { email } });
+    async findByEmail(email) {
+      return withRole(await prisma.user.findUnique({ where: { email } }));
     },
 
-    updateProfile(id, { username, email, emailVerifiedAt }) {
-      return prisma.user.update({
+    async updateProfile(id, { username, email, emailVerifiedAt }) {
+      return withRole(await prisma.user.update({
         where: { id },
         data: {
           username,
@@ -37,25 +43,25 @@ export function createUserModel(prisma) {
           email,
           emailVerifiedAt,
         },
-      });
+      }));
     },
 
-    updatePassword(id, passwordHash) {
-      return prisma.user.update({
+    async updatePassword(id, passwordHash) {
+      return withRole(await prisma.user.update({
         where: { id },
         data: { passwordHash },
-      });
+      }));
     },
 
-    markEmailVerified(id) {
-      return prisma.user.update({
+    async markEmailVerified(id) {
+      return withRole(await prisma.user.update({
         where: { id },
         data: { emailVerifiedAt: new Date() },
-      });
+      }));
     },
 
-    deleteById(id) {
-      return prisma.user.delete({ where: { id } });
+    async deleteById(id) {
+      return withRole(await prisma.user.delete({ where: { id } }));
     },
   };
 }

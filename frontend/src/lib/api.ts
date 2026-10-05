@@ -3,6 +3,19 @@ export type User = {
   username: string;
   email: string;
   emailVerified: boolean;
+  isAdmin: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Picture = {
+  id: number;
+  title: string;
+  altText: string;
+  assetKey: string | null;
+  imageUrl: string | null;
+  filename: string | null;
+  position: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -24,11 +37,12 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const isFormData = options.body instanceof FormData;
   const response = await fetch(path, {
     ...options,
     credentials: "same-origin",
     headers: {
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.body && !isFormData ? { "Content-Type": "application/json" } : {}),
       ...options.headers,
     },
   });
@@ -84,4 +98,16 @@ export const api = {
       method: "DELETE",
       body: JSON.stringify({ password }),
     }),
+  listPictures: () => request<{ pictures: Picture[] }>("/api/pictures"),
+  createPicture: (form: FormData) =>
+    request<{ picture: Picture }>("/api/pictures", { method: "POST", body: form }),
+  updatePicture: (id: number, form: FormData) =>
+    request<{ picture: Picture }>(`/api/pictures/${id}`, { method: "PATCH", body: form }),
+  movePicture: (id: number, direction: "up" | "down") =>
+    request<{ pictures: Picture[] }>(`/api/pictures/${id}/position`, {
+      method: "PATCH",
+      body: JSON.stringify({ direction }),
+    }),
+  deletePicture: (id: number) =>
+    request<void>(`/api/pictures/${id}`, { method: "DELETE" }),
 };
