@@ -10,6 +10,7 @@ import TetrisGame from "./pages/games/tetris";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Account from "./pages/Account";
+import VerifyEmail from "./pages/VerifyEmail";
 import { AuthProvider } from "./context/AuthContext";
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
           <Route path="/pictures" element={<Picture />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/account" element={<Account />} />
           <Route path="/games">
             <Route index element={<Games />} />

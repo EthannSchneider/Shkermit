@@ -10,7 +10,7 @@ import {
   validateUsername,
 } from "../utils/validation.js";
 
-export function createAuthService({ userModel, sessionService }) {
+export function createAuthService({ userModel, sessionService, emailVerificationService }) {
   return {
     async register({ username, email, password }) {
       const error = validateUsername(username) || validateEmail(email) || validatePassword(password);
@@ -31,7 +31,8 @@ export function createAuthService({ userModel, sessionService }) {
         throw databaseError;
       }
 
-      return { user, token: await sessionService.create(user.id) };
+      await emailVerificationService.send(user);
+      return user;
     },
 
     async login({ identifier, password }) {
@@ -43,8 +44,23 @@ export function createAuthService({ userModel, sessionService }) {
       const user = await userModel.findByIdentifier(cleanIdentifier);
       const valid = user ? await bcrypt.compare(password, user.passwordHash) : false;
       if (!valid) throw new HttpError(401, "Invalid email, username, or password.");
+      if (!user.emailVerifiedAt) {
+        throw new HttpError(403, "Confirm your email before logging in.", {
+          code: "EMAIL_NOT_VERIFIED",
+          email: user.email,
+        });
+      }
 
       return { user, token: await sessionService.create(user.id) };
+    },
+
+    async verifyEmail(token) {
+      const user = await emailVerificationService.verify(token);
+      return { user, token: await sessionService.create(user.id) };
+    },
+
+    async resendVerification(email) {
+      await emailVerificationService.resend(email);
     },
 
     logout(token) {

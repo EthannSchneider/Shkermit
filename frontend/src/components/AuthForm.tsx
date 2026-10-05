@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-context";
+import { ApiError } from "../lib/api";
 
 export default function AuthForm({ mode }: { mode: "login" | "register" }) {
   const { user, loading, login, register } = useAuth();
@@ -24,13 +25,19 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
         if (password !== String(data.get("confirmPassword"))) {
           throw new Error("Passwords do not match.");
         }
-        await register(String(data.get("username")), String(data.get("email")), password);
+        const result = await register(String(data.get("username")), String(data.get("email")), password);
+        navigate(`/verify-email?email=${encodeURIComponent(result.email)}`, { replace: true });
+        return;
       } else {
         await login(String(data.get("identifier")), String(data.get("password")));
       }
       const requestedPath = (location.state as { from?: string } | null)?.from;
       navigate(requestedPath ?? "/account", { replace: true });
     } catch (caught) {
+      if (caught instanceof ApiError && caught.code === "EMAIL_NOT_VERIFIED" && caught.email) {
+        navigate(`/verify-email?email=${encodeURIComponent(caught.email)}`);
+        return;
+      }
       setError(caught instanceof Error ? caught.message : "Something went wrong.");
     } finally {
       setSubmitting(false);

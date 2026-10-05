@@ -122,6 +122,17 @@ input {
   cursor: pointer;
 }
 
+.button-link {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
+
+.form-message a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 .primary-button {
   background: rgb(21 128 61);
 }

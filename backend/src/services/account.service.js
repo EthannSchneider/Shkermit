@@ -10,17 +10,27 @@ import {
   validateUsername,
 } from "../utils/validation.js";
 
-export function createAccountService({ userModel, sessionService, withTransaction }) {
+export function createAccountService({
+  userModel,
+  sessionService,
+  emailVerificationService,
+  withTransaction,
+}) {
   return {
     async updateProfile(user, { username = user.username, email = user.email }) {
       const error = validateUsername(username) || validateEmail(email);
       if (error) throw new HttpError(400, error);
 
       try {
-        return await userModel.updateProfile(user.id, {
+        const cleanEmail = normalizedEmail(email);
+        const emailChanged = cleanEmail !== user.email;
+        const updatedUser = await userModel.updateProfile(user.id, {
           username: normalizedUsername(username),
-          email: normalizedEmail(email),
+          email: cleanEmail,
+          emailVerifiedAt: emailChanged ? null : user.emailVerifiedAt,
         });
+        if (emailChanged) await emailVerificationService.send(updatedUser);
+        return updatedUser;
       } catch (databaseError) {
         if (isUniqueConstraint(databaseError)) {
           throw new HttpError(409, "That username or email is already in use.");

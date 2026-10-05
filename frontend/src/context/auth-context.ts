@@ -4,7 +4,8 @@ import type { User } from "../lib/api";
 export type AuthContextValue = {
   user: User | null;
   loading: boolean;
-  register: (username: string, email: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string) => Promise<{ email: string }>;
+  verifyEmail: (token: string) => Promise<void>;
   login: (identifier: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: User | null) => void;

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-context";
 import { api } from "../lib/api";
 
@@ -80,7 +80,13 @@ export default function Account() {
       <div className="account-heading">
         <p className="auth-eyebrow">Signed in as {user.username}</p>
         <h1>Account settings</h1>
-        <p>Member since {new Date(user.createdAt.replace(" ", "T") + "Z").toLocaleDateString()}.</p>
+        <p>Member since {new Date(user.createdAt).toLocaleDateString()}.</p>
+        {!user.emailVerified && (
+          <div className="form-message form-error">
+            Your new email address is not confirmed. {" "}
+            <Link to={`/verify-email?email=${encodeURIComponent(user.email)}`}>Resend confirmation</Link>
+          </div>
+        )}
       </div>
 
       <section className="settings-card">

@@ -30,7 +30,7 @@ npm run dev
 
 Vite proxies `/api` requests to `http://localhost:3001`. Prisma creates the SQLite database at `backend/data/shkermit.db` when the migrations are applied. The database file is ignored by Git.
 
-The account API supports registration, login/logout, session restore, profile updates, password changes, and account deletion. Authentication uses an opaque token in an `HttpOnly`, `SameSite=Strict` cookie; only its SHA-256 hash is saved in SQLite. Passwords are hashed with bcrypt.
+The account API supports registration, email confirmation, login/logout, session restore, profile updates, password changes, and account deletion. Authentication uses an opaque token in an `HttpOnly`, `SameSite=Strict` cookie; only its SHA-256 hash is saved in SQLite. Passwords are hashed with bcrypt. Email confirmation tokens are also hashed, expire after 24 hours by default, and can only be used once.
 
 ### Backend structure
 
@@ -47,6 +47,8 @@ The API is split by responsibility:
 ### Configuration
 
 Copy `backend/.env.example` to `backend/.env` if you need to change the defaults. Supported variables are `PORT`, `DATABASE_URL`, `SESSION_TTL_DAYS`, and `NODE_ENV`. When `NODE_ENV=production`, authentication cookies are marked `Secure`, so the site must be served over HTTPS.
+
+Email links use `APP_URL`, which should be the public frontend origin. Configure delivery with `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`. In development, leaving `SMTP_HOST` empty prints the confirmation URL in the backend console. Production startup fails when `SMTP_HOST` is missing so accounts cannot silently become unverifiable.
 
 ### Database migrations
 

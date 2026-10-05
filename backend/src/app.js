@@ -7,6 +7,7 @@ import { createAuthenticationMiddleware } from "./middleware/authenticate.js";
 import { createAuthRateLimit } from "./middleware/auth-rate-limit.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { createSessionModel } from "./models/session.model.js";
+import { createEmailVerificationModel } from "./models/email-verification.model.js";
 import { createUserModel } from "./models/user.model.js";
 import { createAccountRouter } from "./routes/account.routes.js";
 import { createAuthRouter } from "./routes/auth.routes.js";
@@ -14,22 +15,49 @@ import { createHealthRouter } from "./routes/health.routes.js";
 import { createAccountService } from "./services/account.service.js";
 import { createAuthService } from "./services/auth.service.js";
 import { createSessionService, sessionCookieOptions } from "./services/session.service.js";
+import { createEmailVerificationService } from "./services/email-verification.service.js";
 
-export function createApp({ db, sessionTtlMs, isProduction = false }) {
+export function createApp({
+  db,
+  sessionTtlMs,
+  emailVerificationTtlMs,
+  appUrl,
+  mailer,
+  isProduction = false,
+}) {
   const app = express();
 
   const userModel = createUserModel(db);
   const sessionModel = createSessionModel(db);
+  const emailVerificationModel = createEmailVerificationModel(db);
   const sessionService = createSessionService({ sessionModel, sessionTtlMs });
-  const authService = createAuthService({ userModel, sessionService });
   const withTransaction = (work) =>
     db.$transaction((transaction) =>
       work({
         userModel: createUserModel(transaction),
         sessionModel: createSessionModel(transaction),
+        emailVerificationModel: createEmailVerificationModel(transaction),
       }),
     );
-  const accountService = createAccountService({ userModel, sessionService, withTransaction });
+  const emailVerificationService = createEmailVerificationService({
+    userModel,
+    emailVerificationModel,
+    mailer,
+    withTransaction,
+    appUrl,
+    tokenTtlMs: emailVerificationTtlMs,
+  });
+  const authService = createAuthService({
+    userModel,
+    sessionService,
+    emailVerificationService,
+  });
+  const accountService = createAccountService({
+    userModel,
+    sessionService,
+    emailVerificationService,
+    withTransaction,
+  });
   const cookieOptions = sessionCookieOptions(sessionTtlMs, isProduction);
   const authRateLimit = createAuthRateLimit(isProduction);
   const requireAuth = createAuthenticationMiddleware({ sessionService, userModel });

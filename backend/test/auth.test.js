@@ -12,6 +12,13 @@ import { createDatabase } from "../src/database/index.js";
 let db;
 let app;
 let testDirectory;
+const sentEmails = [];
+
+function latestTokenFor(email) {
+  const message = [...sentEmails].reverse().find((item) => item.to === email);
+  assert.ok(message, `Expected a verification email for ${email}`);
+  return new URL(message.verificationUrl).searchParams.get("token");
+}
 
 before(async () => {
   const backendDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -29,7 +36,17 @@ before(async () => {
   );
 
   db = createDatabase(databaseUrl);
-  app = createApp({ db, sessionTtlMs: 24 * 60 * 60 * 1000 });
+  app = createApp({
+    db,
+    sessionTtlMs: 24 * 60 * 60 * 1000,
+    emailVerificationTtlMs: 60 * 60 * 1000,
+    appUrl: "http://localhost:5173",
+    mailer: {
+      async sendVerificationEmail(message) {
+        sentEmails.push(message);
+      },
+    },
+  });
 });
 
 after(async () => {
@@ -43,7 +60,7 @@ test("reports API health", async () => {
   assert.deepEqual(response.body, { status: "ok" });
 });
 
-test("registers a user, creates a session, and returns the profile", async () => {
+test("registers a user and requires email confirmation before creating a session", async () => {
   const agent = request.agent(app);
   const registration = await agent.post("/api/auth/register").send({
     username: "KermitFan",
@@ -52,15 +69,62 @@ test("registers a user, creates a session, and returns the profile", async () =>
   });
 
   assert.equal(registration.status, 201);
-  assert.equal(registration.body.user.username, "KermitFan");
-  assert.equal(registration.body.user.email, "fan@example.com");
-  assert.equal("password_hash" in registration.body.user, false);
-  assert.match(registration.headers["set-cookie"][0], /HttpOnly/);
-  assert.match(registration.headers["set-cookie"][0], /SameSite=Strict/);
+  assert.equal(registration.body.email, "fan@example.com");
+  assert.equal(registration.headers["set-cookie"], undefined);
+  assert.equal((await agent.get("/api/auth/me")).status, 401);
+
+  const blockedLogin = await agent.post("/api/auth/login").send({
+    identifier: "fan@example.com",
+    password: "StrongPass123",
+  });
+  assert.equal(blockedLogin.status, 403);
+  assert.equal(blockedLogin.body.code, "EMAIL_NOT_VERIFIED");
+
+  const confirmation = await agent.post("/api/auth/verify-email").send({
+    token: latestTokenFor("fan@example.com"),
+  });
+  assert.equal(confirmation.status, 200);
+  assert.equal(confirmation.body.user.username, "KermitFan");
+  assert.equal(confirmation.body.user.emailVerified, true);
+  assert.equal("passwordHash" in confirmation.body.user, false);
+  assert.match(confirmation.headers["set-cookie"][0], /HttpOnly/);
+  assert.match(confirmation.headers["set-cookie"][0], /SameSite=Strict/);
 
   const profile = await agent.get("/api/auth/me");
   assert.equal(profile.status, 200);
   assert.equal(profile.body.user.username, "KermitFan");
+});
+
+test("verification links are single-use and resend responses do not reveal accounts", async () => {
+  const usedToken = latestTokenFor("fan@example.com");
+  assert.equal((await request(app).post("/api/auth/verify-email").send({ token: usedToken })).status, 400);
+
+  await request(app).post("/api/auth/register").send({
+    username: "PendingFan",
+    email: "pending@example.com",
+    password: "StrongPass123",
+  });
+  const originalToken = latestTokenFor("pending@example.com");
+  const known = await request(app)
+    .post("/api/auth/resend-verification")
+    .send({ email: "pending@example.com" });
+  const unknown = await request(app)
+    .post("/api/auth/resend-verification")
+    .send({ email: "nobody@example.com" });
+  assert.equal(known.status, 202);
+  assert.equal(unknown.status, 202);
+  assert.deepEqual(known.body, unknown.body);
+
+  const replacementToken = latestTokenFor("pending@example.com");
+  assert.notEqual(replacementToken, originalToken);
+  assert.equal(
+    (await request(app).post("/api/auth/verify-email").send({ token: originalToken })).status,
+    400,
+  );
+  assert.equal(
+    (await request(app).post("/api/auth/verify-email").send({ token: replacementToken })).status,
+    200,
+  );
 });
 
 test("rejects duplicate identities regardless of case", async () => {
@@ -113,6 +177,13 @@ test("updates profile and password while invalidating older sessions", async () 
   });
   assert.equal(update.status, 200);
   assert.equal(update.body.user.username, "SwampFan");
+  assert.equal(update.body.user.emailVerified, false);
+
+  const reconfirmation = await currentAgent.post("/api/auth/verify-email").send({
+    token: latestTokenFor("swamp@example.com"),
+  });
+  assert.equal(reconfirmation.status, 200);
+  assert.equal(reconfirmation.body.user.emailVerified, true);
 
   const passwordUpdate = await currentAgent.put("/api/account/password").send({
     currentPassword: "StrongPass123",

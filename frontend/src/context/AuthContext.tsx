@@ -20,6 +20,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function register(username: string, email: string, password: string) {
     const result = await api.register(username, email, password);
+    return { email: result.email };
+  }
+
+  async function verifyEmail(token: string) {
+    const result = await api.verifyEmail(token);
     setUser(result.user);
   }
 
@@ -34,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, register, login, logout, setUser }}>
+    <AuthContext.Provider value={{ user, loading, register, verifyEmail, login, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   );
