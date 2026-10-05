@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createApp } from "./app.js";
@@ -9,6 +10,7 @@ import { createMailer } from "./services/mailer.service.js";
 
 const sourceDirectory = path.dirname(fileURLToPath(import.meta.url));
 const defaultDatabasePath = path.resolve(sourceDirectory, "../data/shkermit.db");
+const publicDirectory = path.resolve(sourceDirectory, "../public");
 const port = Number.parseInt(process.env.PORT ?? "3001", 10);
 const sessionTtlDays = Number.parseInt(process.env.SESSION_TTL_DAYS ?? "30", 10);
 const sessionTtlMs = sessionTtlDays * 24 * 60 * 60 * 1000;
@@ -52,6 +54,7 @@ const app = createApp({
   mailer,
   adminEmails,
   pictureUploadDirectory,
+  frontendDirectory: existsSync(path.join(publicDirectory, "index.html")) ? publicDirectory : null,
   isProduction,
 });
 

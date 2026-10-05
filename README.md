@@ -79,3 +79,24 @@ Useful commands include `npm run db:migrate:status`, `npm run db:generate`, and 
 cd backend && npm test
 cd frontend && npm run lint && npm run build
 ```
+
+### Docker
+
+The root `Dockerfile` builds the React application and copies its production output into `backend/public`. Express serves that directory with SPA fallback routing while keeping `/api` routes on the backend.
+
+Build the image from the repository root:
+
+```bash
+docker build -t shkermit .
+```
+
+Run it with a persistent data volume and your production configuration:
+
+```bash
+docker run --rm -p 3001:3001 \
+  --env-file backend/.env \
+  -v shkermit-data:/app/backend/data \
+  shkermit
+```
+
+The container applies committed Prisma migrations before starting. The named volume persists SQLite and uploaded pictures. The built frontend and bundled pictures are included in the image.

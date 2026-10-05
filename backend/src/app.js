@@ -1,6 +1,7 @@
 import cookieParser from "cookie-parser";
 import express from "express";
 import helmet from "helmet";
+import path from "node:path";
 import { createAccountController } from "./controllers/account.controller.js";
 import { createAuthController } from "./controllers/auth.controller.js";
 import { createPictureController } from "./controllers/picture.controller.js";
@@ -31,6 +32,7 @@ export function createApp({
   mailer,
   adminEmails = [],
   pictureUploadDirectory = "data/files/pictures",
+  frontendDirectory = null,
   isProduction = false,
 }) {
   const app = express();
@@ -80,6 +82,10 @@ export function createApp({
   app.use(helmet());
   app.use(express.json({ limit: "20kb" }));
   app.use(cookieParser());
+  app.use("/api/picture-assets", express.static(path.join(pictureUploadDirectory, "builtin"), {
+    immutable: true,
+    maxAge: "1y",
+  }));
 
   app.use("/api/health", createHealthRouter());
   app.use(
@@ -94,6 +100,15 @@ export function createApp({
     "/api/pictures",
     createPictureRouter({ controller: pictureController, requireAuth, requireAdmin }),
   );
+
+  if (frontendDirectory) {
+    app.use(express.static(frontendDirectory));
+    app.get(/^(?!\/api(?:\/|$)).*/, (_request, response, next) => {
+      response.sendFile(path.join(frontendDirectory, "index.html"), (error) => {
+        if (error) next(error);
+      });
+    });
+  }
 
   app.use(errorHandler);
   return app;
