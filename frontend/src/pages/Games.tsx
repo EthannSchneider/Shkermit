@@ -26,7 +26,7 @@ const games: Game[] = [
   {
     path: '/games/tetris',
     name: 'Shkermit Stacks',
-    description: 'A Shkermit-powered solo block-stacking challenge with combos and special abilities.',
+    description: 'Stack solo or share one board with a friend in real-time online co-op.',
     icon: '🧩',
     available: true
   },

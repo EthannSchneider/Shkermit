@@ -7,6 +7,7 @@ import { createDatabase } from "./database/index.js";
 import { createSessionModel } from "./models/session.model.js";
 import { createEmailVerificationModel } from "./models/email-verification.model.js";
 import { createMailer } from "./services/mailer.service.js";
+import { createTetrisWebSocketServer } from "./websocket/tetris-websocket.js";
 
 const sourceDirectory = path.dirname(fileURLToPath(import.meta.url));
 const defaultDatabasePath = path.resolve(sourceDirectory, "../data/shkermit.db");
@@ -61,8 +62,10 @@ const app = createApp({
 const server = app.listen(port, () => {
   console.log(`Shkermit API listening on http://localhost:${port}`);
 });
+const tetrisWebSockets = createTetrisWebSocketServer(server);
 
 async function shutdown() {
+  tetrisWebSockets.close();
   server.close(async () => {
     await db.$disconnect();
     process.exit(0);

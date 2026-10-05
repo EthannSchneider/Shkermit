@@ -23,7 +23,8 @@
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
     "multer": "^2.4.0",
-    "nodemailer": "^10.0.14"
+    "nodemailer": "^10.0.14",
+    "ws": "^8.22.0"
   },
   "devDependencies": {
     "prisma": "6.12.0",
