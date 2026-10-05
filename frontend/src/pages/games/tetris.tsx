@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import shkermitImage from '../../assets/img/3 TeteShkermit RTX.png';
 
 type PieceName = 'I' | 'O' | 'T' | 'S' | 'Z' | 'J' | 'L';
+type CellType = PieceName | 'G';
 type PlayerId = 1 | 2;
-type GameMode = 'solo' | 'coop';
+type GameMode = 'solo' | 'coop' | 'duel';
 type GameStatus = 'ready' | 'playing' | 'paused' | 'gameover';
 type Action = 'left' | 'right' | 'rotate' | 'down' | 'drop';
 type GameCommand = 'toggle_pause' | 'restart' | 'frog_flush';
@@ -13,8 +14,14 @@ type KeyBinding = { code: string; label: string };
 type KeyboardBindings = Record<KeyboardAction, KeyBinding>;
 
 type Cell = {
-  type: PieceName;
+  type: CellType;
   owner: PlayerId;
+};
+
+type PlayerStats = {
+  score: number;
+  lines: number;
+  combo: number;
 };
 
 type ActivePiece = {
@@ -28,6 +35,7 @@ type ActivePiece = {
 type GameState = {
   mode: GameMode;
   board: (Cell | null)[][];
+  duelBoards: Record<PlayerId, (Cell | null)[][]> | null;
   active: ActivePiece[];
   status: GameStatus;
   cols: number;
@@ -38,7 +46,20 @@ type GameState = {
   best: number;
   meter: number;
   next: Record<PlayerId, PieceName>;
+  playerStats: Record<PlayerId, PlayerStats>;
+  winner: PlayerId | null;
   message: string;
+};
+
+type SavedMultiplayerSession = {
+  roomCode: string;
+  playerId: PlayerId;
+  resumeToken: string;
+  gameMode: 'coop' | 'duel';
+  game?: GameState;
+  bag?: PieceName[];
+  duelSequence?: PieceName[];
+  duelDrawIndex?: Record<PlayerId, number>;
 };
 
 type CoopState = {
@@ -74,6 +95,7 @@ const DEFAULT_BINDINGS: KeyboardBindings = {
   frogFlush: { code: 'KeyB', label: 'B' },
 };
 const KEY_BINDINGS_STORAGE_KEY = 'shkermitStacksKeyBindings';
+const MULTIPLAYER_SESSION_STORAGE_KEY = 'shkermitStacksMultiplayerSession';
 
 const BASE_SHAPES: Record<PieceName, string[]> = {
   I: ['....', '####', '....', '....'],
@@ -85,7 +107,7 @@ const BASE_SHAPES: Record<PieceName, string[]> = {
   L: ['..#', '###', '...'],
 };
 
-const PIECE_COLORS: Record<PieceName, string> = {
+const PIECE_COLORS: Record<CellType, string> = {
   I: '#35d7ff',
   O: '#ffe44f',
   T: '#ba70ff',
@@ -93,6 +115,7 @@ const PIECE_COLORS: Record<PieceName, string> = {
   Z: '#ff607a',
   J: '#5d8cff',
   L: '#ff9b45',
+  G: '#56615a',
 };
 
 const PLAYER_COLORS: Record<PlayerId, string> = {
@@ -166,9 +189,19 @@ const getGhost = (piece: ActivePiece, board: (Cell | null)[][], active: ActivePi
   return ghost;
 };
 
+const getPlayerBoard = (game: GameState, player: PlayerId) => (
+  game.mode === 'duel' ? game.duelBoards![player] : game.board
+);
+
+const getCollidingPieces = (game: GameState, player: PlayerId) => (
+  game.mode === 'duel' ? game.active.filter((piece) => piece.player === player) : game.active
+);
+
 const getSavedBest = (mode: GameMode) => {
   if (typeof window === 'undefined') return 0;
-  const key = mode === 'coop' ? 'shkermitStacksCoopBest' : 'shkermitStacksBest';
+  const key = mode === 'coop'
+    ? 'shkermitStacksCoopBest'
+    : mode === 'duel' ? 'shkermitStacksDuelBest' : 'shkermitStacksBest';
   return Number.parseInt(window.localStorage.getItem(key) || '0', 10) || 0;
 };
 
@@ -206,6 +239,7 @@ const keyLabelFromEvent = (event: KeyboardEvent) => {
 const initialGame = (mode: GameMode = 'solo'): GameState => ({
   mode,
   board: makeBoard(mode === 'coop' ? COOP_COLS : SOLO_COLS),
+  duelBoards: mode === 'duel' ? { 1: makeBoard(SOLO_COLS), 2: makeBoard(SOLO_COLS) } : null,
   active: [],
   status: 'ready',
   cols: mode === 'coop' ? COOP_COLS : SOLO_COLS,
@@ -216,6 +250,11 @@ const initialGame = (mode: GameMode = 'solo'): GameState => ({
   best: getSavedBest(mode),
   meter: 0,
   next: { 1: 'T', 2: 'L' },
+  playerStats: {
+    1: { score: 0, lines: 0, combo: -1 },
+    2: { score: 0, lines: 0, combo: -1 },
+  },
+  winner: null,
   message: 'Ready to stack',
 });
 
@@ -229,15 +268,54 @@ const initialCoop = (): CoopState => ({
 const isGameState = (value: unknown): value is GameState => {
   if (!value || typeof value !== 'object') return false;
   const state = value as Partial<GameState>;
-  return state.mode === 'coop'
-    && state.cols === COOP_COLS
+  return (state.mode === 'coop' || state.mode === 'duel')
+    && state.cols === (state.mode === 'duel' ? SOLO_COLS : COOP_COLS)
     && Array.isArray(state.board)
     && state.board.length === ROWS
-    && state.board.every((row) => Array.isArray(row) && row.length === COOP_COLS)
+    && state.board.every((row) => Array.isArray(row) && row.length === state.cols)
+    && (state.mode !== 'duel'
+      || Boolean(state.duelBoards
+        && [state.duelBoards[1], state.duelBoards[2]].every((board) => (
+          Array.isArray(board)
+          && board.length === ROWS
+          && board.every((row) => Array.isArray(row) && row.length === SOLO_COLS)
+        ))))
     && Array.isArray(state.active)
     && ['ready', 'playing', 'paused', 'gameover'].includes(state.status || '')
     && typeof state.score === 'number'
-    && typeof state.lines === 'number';
+    && typeof state.lines === 'number'
+    && Boolean(state.playerStats
+      && [state.playerStats[1], state.playerStats[2]].every((stats) => (
+        stats
+        && typeof stats.score === 'number'
+        && typeof stats.lines === 'number'
+        && typeof stats.combo === 'number'
+      )))
+    && Boolean(state.next?.[1] && state.next?.[2]);
+};
+
+const getSavedMultiplayerSession = (): SavedMultiplayerSession | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const saved = JSON.parse(window.sessionStorage.getItem(MULTIPLAYER_SESSION_STORAGE_KEY) || 'null') as SavedMultiplayerSession | null;
+    if (!saved
+      || !/^[A-Z2-9]{5}$/.test(saved.roomCode)
+      || (saved.playerId !== 1 && saved.playerId !== 2)
+      || typeof saved.resumeToken !== 'string'
+      || (saved.gameMode !== 'coop' && saved.gameMode !== 'duel')) return null;
+    if (saved.game && !isGameState(saved.game)) delete saved.game;
+    return saved;
+  } catch {
+    return null;
+  }
+};
+
+const persistMultiplayerSession = (session: SavedMultiplayerSession) => {
+  window.sessionStorage.setItem(MULTIPLAYER_SESSION_STORAGE_KEY, JSON.stringify(session));
+};
+
+const clearMultiplayerSession = () => {
+  window.sessionStorage.removeItem(MULTIPLAYER_SESSION_STORAGE_KEY);
 };
 
 function MiniPiece({ type, player }: { type: PieceName; player: PlayerId }) {
@@ -276,6 +354,59 @@ function ControlPad({ player, onAction }: { player: PlayerId; onAction: (player:
   );
 }
 
+type RenderedCell = { cell: Cell; ghost?: boolean; active?: boolean };
+
+function BoardGrid({
+  cells,
+  cols,
+  width,
+  accent,
+  label,
+}: {
+  cells: Map<string, RenderedCell>;
+  cols: number;
+  width: string;
+  accent: string;
+  label: string;
+}) {
+  return (
+    <div>
+      {label && <p className="mb-2 text-center text-[9px]" style={{ color: accent }}>{label}</p>}
+      <div
+        className="grid overflow-hidden rounded-xl border-2 bg-[#020704] p-1 shadow-[0_0_60px_rgba(118,255,76,0.08)]"
+        style={{
+          width,
+          aspectRatio: `${cols} / ${ROWS}`,
+          borderColor: `${accent}55`,
+          gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+          gridTemplateRows: `repeat(${ROWS}, minmax(0, 1fr))`,
+          gap: '1px',
+        }}
+      >
+        {Array.from({ length: ROWS * cols }, (_, index) => {
+          const x = index % cols;
+          const y = Math.floor(index / cols);
+          const rendered = cells.get(`${x}:${y}`);
+          const color = rendered ? PIECE_COLORS[rendered.cell.type] : undefined;
+          const ownerColor = rendered ? PLAYER_COLORS[rendered.cell.owner] : undefined;
+          return (
+            <span
+              key={index}
+              className="rounded-[2px] bg-white/[0.025]"
+              style={rendered ? {
+                background: rendered.ghost ? `${color}1f` : color,
+                border: rendered.ghost ? `1px solid ${color}65` : undefined,
+                boxShadow: rendered.active ? `inset 0 0 0 2px ${ownerColor}, inset 2px 2px 0 rgba(255,255,255,.3)` : `inset 0 0 0 1px ${ownerColor}90, inset 2px 2px 0 rgba(255,255,255,.18)`,
+                opacity: rendered.ghost ? 0.8 : 1,
+              } : undefined}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function TetrisGame() {
   const [game, setGame] = useState<GameState>(initialGame);
   const [coop, setCoop] = useState<CoopState>(initialCoop);
@@ -284,8 +415,11 @@ export default function TetrisGame() {
   const [bindingAction, setBindingAction] = useState<KeyboardAction | null>(null);
   const gameRef = useRef(game);
   const bagRef = useRef<PieceName[]>([]);
+  const duelSequenceRef = useRef<PieceName[]>([]);
+  const duelDrawIndexRef = useRef<Record<PlayerId, number>>({ 1: 0, 2: 0 });
   const socketRef = useRef<WebSocket | null>(null);
   const localPlayerRef = useRef<PlayerId | null>(null);
+  const multiplayerSessionRef = useRef<SavedMultiplayerSession | null>(getSavedMultiplayerSession());
   const intentionalCloseRef = useRef(false);
   const socketMessageHandlerRef = useRef<(message: Record<string, unknown>) => void>(() => undefined);
 
@@ -300,7 +434,17 @@ export default function TetrisGame() {
   const publish = useCallback((nextGame: GameState, sync = true) => {
     gameRef.current = nextGame;
     setGame(nextGame);
-    if (sync && nextGame.mode === 'coop' && localPlayerRef.current === 1) {
+    if (nextGame.mode !== 'solo' && multiplayerSessionRef.current) {
+      multiplayerSessionRef.current = {
+        ...multiplayerSessionRef.current,
+        game: nextGame,
+        bag: [...bagRef.current],
+        duelSequence: [...duelSequenceRef.current],
+        duelDrawIndex: { ...duelDrawIndexRef.current },
+      };
+      persistMultiplayerSession(multiplayerSessionRef.current);
+    }
+    if (sync && nextGame.mode !== 'solo' && localPlayerRef.current === 1) {
       sendSocketMessage({ type: 'state', state: nextGame });
     }
   }, [sendSocketMessage]);
@@ -350,26 +494,50 @@ export default function TetrisGame() {
     return bagRef.current.pop() as PieceName;
   }, []);
 
-  const endGame = useCallback((data: GameState) => {
+  const drawDuelType = useCallback((player: PlayerId) => {
+    const index = duelDrawIndexRef.current[player];
+    if (index >= duelSequenceRef.current.length) {
+      const bag = [...PIECES];
+      for (let bagIndex = bag.length - 1; bagIndex > 0; bagIndex -= 1) {
+        const swapIndex = Math.floor(Math.random() * (bagIndex + 1));
+        [bag[bagIndex], bag[swapIndex]] = [bag[swapIndex], bag[bagIndex]];
+      }
+      duelSequenceRef.current.push(...bag);
+    }
+    duelDrawIndexRef.current[player] += 1;
+    return duelSequenceRef.current[index];
+  }, []);
+
+  const endGame = useCallback((data: GameState, loser?: PlayerId) => {
     const best = Math.max(data.best, data.score);
-    const key = data.mode === 'coop' ? 'shkermitStacksCoopBest' : 'shkermitStacksBest';
+    const key = data.mode === 'coop'
+      ? 'shkermitStacksCoopBest'
+      : data.mode === 'duel' ? 'shkermitStacksDuelBest' : 'shkermitStacksBest';
     window.localStorage.setItem(key, String(best));
+    if (data.mode === 'duel' && loser) {
+      const winner: PlayerId = loser === 1 ? 2 : 1;
+      publish({ ...data, status: 'gameover', best, winner, message: `PLAYER ${winner} WINS THE DUEL!` });
+      return;
+    }
     publish({ ...data, status: 'gameover', best, message: 'The stack got the crew' });
   }, [publish]);
 
   const startGame = useCallback((mode: GameMode = gameRef.current.mode) => {
     bagRef.current = [];
+    duelSequenceRef.current = [];
+    duelDrawIndexRef.current = { 1: 0, 2: 0 };
     const cols = mode === 'coop' ? COOP_COLS : SOLO_COLS;
-    const firstOne = drawType();
-    const nextOne = drawType();
-    const firstTwo: PieceName = mode === 'coop' ? drawType() : 'O';
-    const nextTwo: PieceName = mode === 'coop' ? drawType() : 'O';
+    const firstOne = mode === 'duel' ? drawDuelType(1) : drawType();
+    const nextOne = mode === 'duel' ? drawDuelType(1) : drawType();
+    const firstTwo: PieceName = mode === 'duel' ? drawDuelType(2) : mode === 'coop' ? drawType() : 'O';
+    const nextTwo: PieceName = mode === 'duel' ? drawDuelType(2) : mode === 'coop' ? drawType() : 'O';
     const active = [spawnPiece(firstOne, 1, cols, mode)];
-    if (mode === 'coop') active.push(spawnPiece(firstTwo, 2, cols, mode));
+    if (mode !== 'solo') active.push(spawnPiece(firstTwo, 2, cols, mode));
 
     publish({
       mode,
       board: makeBoard(cols),
+      duelBoards: mode === 'duel' ? { 1: makeBoard(cols), 2: makeBoard(cols) } : null,
       active,
       status: 'playing',
       cols,
@@ -380,20 +548,27 @@ export default function TetrisGame() {
       best: getSavedBest(mode),
       meter: 0,
       next: { 1: nextOne, 2: nextTwo },
-      message: mode === 'coop' ? 'Two frogs. One stack. Work together!' : 'Stack steady.',
+      playerStats: {
+        1: { score: 0, lines: 0, combo: -1 },
+        2: { score: 0, lines: 0, combo: -1 },
+      },
+      winner: null,
+      message: mode === 'coop'
+        ? 'Two frogs. One stack. Work together!'
+        : mode === 'duel' ? 'Clear lines to attack your rival!' : 'Stack steady.',
     });
-  }, [drawType, publish]);
+  }, [drawDuelType, drawType, publish]);
 
   const lockPiece = useCallback((source: GameState, player: PlayerId) => {
     const piece = source.active.find((item) => item.player === player);
     if (!piece) return;
 
     if (getCells(piece).some(({ y }) => y < 0)) {
-      endGame(source);
+      endGame(source, player);
       return;
     }
 
-    let board = source.board.map((row) => [...row]);
+    let board = getPlayerBoard(source, player).map((row) => [...row]);
     getCells(piece).forEach(({ x, y }) => {
       board[y][x] = { type: piece.type, owner: player };
     });
@@ -406,7 +581,7 @@ export default function TetrisGame() {
     while (board.length < ROWS) board.unshift(Array<Cell | null>(source.cols).fill(null));
 
     let active = source.active.filter((item) => item.player !== player);
-    if (fullRows.length) {
+    if (fullRows.length && source.mode !== 'duel') {
       active = active.map((item) => {
         const lowestCell = Math.max(...getCells(item).map(({ y }) => y));
         const shift = fullRows.filter((row) => row > lowestCell).length;
@@ -414,56 +589,107 @@ export default function TetrisGame() {
       });
     }
 
-    const combo = fullRows.length ? source.combo + 1 : -1;
+    const previousCombo = source.mode === 'duel' ? source.playerStats[player].combo : source.combo;
+    const combo = fullRows.length ? previousCombo + 1 : -1;
     const scoreTable = [0, 100, 300, 500, 800];
     const gained = Math.round(((scoreTable[fullRows.length] || fullRows.length * 250) + Math.max(0, combo) * 50) * source.level);
-    const lines = source.lines + fullRows.length;
+    const playerLines = source.playerStats[player].lines + fullRows.length;
     const nextType = source.next[player];
     const spawned = spawnPiece(nextType, player, source.cols, source.mode);
-    const next = { ...source.next, [player]: drawType() };
+    const next = { ...source.next, [player]: source.mode === 'duel' ? drawDuelType(player) : drawType() };
+    const playerStats = {
+      ...source.playerStats,
+      [player]: {
+        score: source.playerStats[player].score + gained,
+        lines: playerLines,
+        combo,
+      },
+    };
+    let duelBoards = source.duelBoards;
+    if (source.mode === 'duel') duelBoards = { ...source.duelBoards!, [player]: board };
 
     const data: GameState = {
       ...source,
-      board,
+      board: source.mode === 'duel' ? source.board : board,
+      duelBoards,
       active,
       next,
       score: source.score + gained,
-      lines,
-      level: Math.floor(lines / 10) + 1,
+      lines: source.lines + fullRows.length,
+      level: source.mode === 'duel'
+        ? Math.floor(Math.max(playerStats[1].lines, playerStats[2].lines) / 10) + 1
+        : Math.floor((source.lines + fullRows.length) / 10) + 1,
       combo,
-      meter: Math.min(100, source.meter + fullRows.length * 18),
-      message: fullRows.length >= 4
+      meter: source.mode === 'duel' ? 0 : Math.min(100, source.meter + fullRows.length * 18),
+      playerStats,
+      message: source.mode === 'duel' && fullRows.length >= 2
+        ? `PLAYER ${player} ATTACKS!`
+        : fullRows.length >= 4
         ? 'SHKERMIT! Four-line clear!'
         : fullRows.length > 0
           ? `${fullRows.length} line${fullRows.length > 1 ? 's' : ''} cleared${combo > 0 ? ` • ${combo + 1}x combo` : ''}`
           : source.message,
     };
 
-    if (!isValid(spawned, board, active, source.cols)) {
-      endGame(data);
+    if (source.mode === 'duel') {
+      const attackRows = [0, 0, 1, 2, 4][fullRows.length] || Math.max(0, fullRows.length - 1);
+      if (attackRows > 0) {
+        const opponent: PlayerId = player === 1 ? 2 : 1;
+        const opponentBoard = data.duelBoards![opponent];
+        const overflow = opponentBoard.slice(0, attackRows).some((row) => row.some(Boolean));
+        const garbageRows = Array.from({ length: attackRows }, () => {
+          const hole = Math.floor(Math.random() * source.cols);
+          return Array.from({ length: source.cols }, (_, x): Cell | null => (
+            x === hole ? null : { type: 'G', owner: player }
+          ));
+        });
+        data.duelBoards = {
+          ...data.duelBoards!,
+          [opponent]: [...opponentBoard.slice(attackRows), ...garbageRows],
+        };
+        data.active = data.active.map((item) => item.player === opponent
+          ? { ...item, y: item.y - attackRows }
+          : item);
+        data.message = `PLAYER ${player} SENT ${attackRows} GARBAGE ROW${attackRows > 1 ? 'S' : ''}!`;
+        if (overflow) {
+          endGame(data, opponent);
+          return;
+        }
+      }
+    }
+
+    const collisionPieces = source.mode === 'duel' ? [] : data.active;
+    if (!isValid(spawned, board, collisionPieces, source.cols)) {
+      endGame(data, player);
       return;
     }
 
-    data.active = [...active, spawned];
+    data.active = [...data.active, spawned];
     if (data.meter >= 100) data.message = 'FROG FLUSH READY';
     publish(data);
-  }, [drawType, endGame, publish]);
+  }, [drawDuelType, drawType, endGame, publish]);
 
   const movePlayer = useCallback((player: PlayerId, action: Action) => {
     const source = gameRef.current;
     if (source.status !== 'playing') return;
     const piece = source.active.find((item) => item.player === player);
     if (!piece) return;
+    const board = getPlayerBoard(source, player);
+    const collisionPieces = getCollidingPieces(source, player);
 
     if (action === 'drop') {
       let dropped = { ...piece };
       let distance = 0;
-      while (isValid({ ...dropped, y: dropped.y + 1 }, source.board, source.active, source.cols)) {
+      while (isValid({ ...dropped, y: dropped.y + 1 }, board, collisionPieces, source.cols)) {
         dropped = { ...dropped, y: dropped.y + 1 };
         distance += 1;
       }
       const active = source.active.map((item) => item.player === player ? dropped : item);
-      lockPiece({ ...source, active, score: source.score + distance * 2 }, player);
+      const playerStats = source.mode === 'duel' ? {
+        ...source.playerStats,
+        [player]: { ...source.playerStats[player], score: source.playerStats[player].score + distance * 2 },
+      } : source.playerStats;
+      lockPiece({ ...source, active, score: source.score + distance * 2, playerStats }, player);
       return;
     }
 
@@ -472,7 +698,7 @@ export default function TetrisGame() {
       const kicks = [0, -1, 1, -2, 2];
       const kicked = kicks
         .map((offset) => ({ ...rotated, x: rotated.x + offset }))
-        .find((candidate) => isValid(candidate, source.board, source.active, source.cols));
+        .find((candidate) => isValid(candidate, board, collisionPieces, source.cols));
       if (kicked) publish({ ...source, active: source.active.map((item) => item.player === player ? kicked : item) });
       return;
     }
@@ -480,11 +706,16 @@ export default function TetrisGame() {
     const dx = action === 'left' ? -1 : action === 'right' ? 1 : 0;
     const dy = action === 'down' ? 1 : 0;
     const moved = { ...piece, x: piece.x + dx, y: piece.y + dy };
-    if (isValid(moved, source.board, source.active, source.cols)) {
+    if (isValid(moved, board, collisionPieces, source.cols)) {
+      const playerStats = source.mode === 'duel' && action === 'down' ? {
+        ...source.playerStats,
+        [player]: { ...source.playerStats[player], score: source.playerStats[player].score + 1 },
+      } : source.playerStats;
       publish({
         ...source,
         active: source.active.map((item) => item.player === player ? moved : item),
         score: source.score + (action === 'down' ? 1 : 0),
+        playerStats,
       });
     } else if (action === 'down') {
       lockPiece(source, player);
@@ -493,7 +724,7 @@ export default function TetrisGame() {
 
   const activateFrogFlush = useCallback(() => {
     const source = gameRef.current;
-    if (source.status !== 'playing' || source.meter < 100) return;
+    if (source.status !== 'playing' || source.mode === 'duel' || source.meter < 100) return;
     const occupiedRows = source.board
       .map((row, index) => ({ index, occupied: row.some(Boolean) }))
       .filter(({ occupied }) => occupied)
@@ -524,28 +755,49 @@ export default function TetrisGame() {
     if (source.status === 'paused') publish({ ...source, status: 'playing', message: 'Back in the pond' });
   }, [publish]);
 
-  const closeCoopSocket = useCallback(() => {
+  const closeCoopSocket = useCallback((notifyServer = false) => {
     intentionalCloseRef.current = true;
     const socket = socketRef.current;
     socketRef.current = null;
     localPlayerRef.current = null;
-    if (socket && socket.readyState < WebSocket.CLOSING) socket.close(1000, 'Left the pond');
+    if (socket && socket.readyState === WebSocket.OPEN && notifyServer) {
+      socket.send(JSON.stringify({ type: 'leave' }));
+    }
+    if (socket && socket.readyState < WebSocket.CLOSING) socket.close(1000, 'Left the room');
   }, []);
 
-  const connectToCoop = useCallback((kind: 'create' | 'join', roomCode = '') => {
-    closeCoopSocket();
+  const connectToCoop = useCallback((
+    kind: 'create' | 'join' | 'resume',
+    roomCode = '',
+    gameMode: 'coop' | 'duel' = 'coop',
+    resumeToken = '',
+    restoredGame?: GameState,
+  ) => {
+    closeCoopSocket(kind !== 'resume');
+    if (kind !== 'resume') {
+      multiplayerSessionRef.current = null;
+      clearMultiplayerSession();
+    }
     intentionalCloseRef.current = false;
-    const nextGame = initialGame('coop');
+    const nextGame = restoredGame && isGameState(restoredGame) ? restoredGame : initialGame(gameMode);
     gameRef.current = nextGame;
     setGame(nextGame);
-    setCoop({ phase: 'connecting', roomCode, playerId: null, error: '' });
+    setCoop({
+      phase: 'connecting',
+      roomCode,
+      playerId: kind === 'resume' ? multiplayerSessionRef.current?.playerId || null : null,
+      error: kind === 'resume' ? 'Restoring your board…' : '',
+    });
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const socket = new WebSocket(`${protocol}//${window.location.host}/ws/tetris`);
     socketRef.current = socket;
 
     socket.addEventListener('open', () => {
-      socket.send(JSON.stringify(kind === 'create' ? { type: 'create' } : { type: 'join', roomCode }));
+      const message = kind === 'create'
+        ? { type: 'create', gameMode }
+        : kind === 'resume' ? { type: 'resume', roomCode, resumeToken } : { type: 'join', roomCode };
+      socket.send(JSON.stringify(message));
     });
     socket.addEventListener('message', (event) => {
       try {
@@ -572,7 +824,9 @@ export default function TetrisGame() {
   }, [closeCoopSocket]);
 
   const leaveCoop = useCallback(() => {
-    closeCoopSocket();
+    closeCoopSocket(true);
+    multiplayerSessionRef.current = null;
+    clearMultiplayerSession();
     const nextGame = initialGame('solo');
     gameRef.current = nextGame;
     setGame(nextGame);
@@ -602,19 +856,82 @@ export default function TetrisGame() {
 
   useEffect(() => {
     socketMessageHandlerRef.current = (message) => {
-      if (message.type === 'room_created' && typeof message.roomCode === 'string') {
+      if (message.type === 'room_created'
+        && typeof message.roomCode === 'string'
+        && typeof message.resumeToken === 'string') {
+        const gameMode: 'coop' | 'duel' = message.gameMode === 'duel' ? 'duel' : 'coop';
         localPlayerRef.current = 1;
+        multiplayerSessionRef.current = {
+          roomCode: message.roomCode,
+          playerId: 1,
+          resumeToken: message.resumeToken,
+          gameMode,
+          game: gameRef.current,
+        };
+        persistMultiplayerSession(multiplayerSessionRef.current);
         setCoop({ phase: 'hosting', roomCode: message.roomCode, playerId: 1, error: '' });
         return;
       }
-      if (message.type === 'room_joined' && typeof message.roomCode === 'string') {
+      if (message.type === 'room_joined'
+        && typeof message.roomCode === 'string'
+        && typeof message.resumeToken === 'string') {
+        const gameMode: 'coop' | 'duel' = message.gameMode === 'duel' ? 'duel' : 'coop';
+        const nextGame = initialGame(gameMode);
+        gameRef.current = nextGame;
+        setGame(nextGame);
         localPlayerRef.current = 2;
+        multiplayerSessionRef.current = {
+          roomCode: message.roomCode,
+          playerId: 2,
+          resumeToken: message.resumeToken,
+          gameMode,
+          game: nextGame,
+        };
+        persistMultiplayerSession(multiplayerSessionRef.current);
         setCoop({ phase: 'connected', roomCode: message.roomCode, playerId: 2, error: '' });
+        return;
+      }
+      if (message.type === 'room_resumed'
+        && typeof message.roomCode === 'string'
+        && typeof message.resumeToken === 'string'
+        && (message.playerId === 1 || message.playerId === 2)) {
+        const gameMode: 'coop' | 'duel' = message.gameMode === 'duel' ? 'duel' : 'coop';
+        const playerId = message.playerId;
+        localPlayerRef.current = playerId;
+        const saved = multiplayerSessionRef.current;
+        if (playerId === 1 && saved) {
+          bagRef.current = [...(saved.bag || [])];
+          duelSequenceRef.current = [...(saved.duelSequence || [])];
+          duelDrawIndexRef.current = saved.duelDrawIndex ? { ...saved.duelDrawIndex } : { 1: 0, 2: 0 };
+        }
+        const restoredState = isGameState(message.state)
+          ? message.state
+          : saved?.game && isGameState(saved.game) ? saved.game : initialGame(gameMode);
+        const peerConnected = message.peerConnected === true;
+        const resumedState = !peerConnected && restoredState.status === 'playing'
+          ? { ...restoredState, status: 'paused' as const, message: 'Waiting for the other player to reconnect' }
+          : restoredState;
+        multiplayerSessionRef.current = {
+          ...saved,
+          roomCode: message.roomCode,
+          playerId,
+          resumeToken: message.resumeToken,
+          gameMode,
+          game: resumedState,
+        };
+        persistMultiplayerSession(multiplayerSessionRef.current);
+        setCoop({
+          phase: playerId === 1 && !peerConnected ? 'hosting' : 'connected',
+          roomCode: message.roomCode,
+          playerId,
+          error: peerConnected ? '' : 'Your game was restored. Waiting for the other player to reconnect.',
+        });
+        publish(resumedState, playerId === 1);
         return;
       }
       if (message.type === 'peer_joined' && localPlayerRef.current === 1) {
         setCoop((current) => ({ ...current, phase: 'connected', error: '' }));
-        startGame('coop');
+        startGame(gameRef.current.mode === 'duel' ? 'duel' : 'coop');
         return;
       }
       if (message.type === 'player_action' && localPlayerRef.current === 1) {
@@ -627,7 +944,7 @@ export default function TetrisGame() {
       }
       if (message.type === 'game_command' && localPlayerRef.current === 1) {
         if (message.command === 'toggle_pause') togglePause();
-        if (message.command === 'restart') startGame('coop');
+        if (message.command === 'restart') startGame(gameRef.current.mode === 'duel' ? 'duel' : 'coop');
         if (message.command === 'frog_flush') activateFrogFlush();
         return;
       }
@@ -635,23 +952,62 @@ export default function TetrisGame() {
         publish(message.state, false);
         return;
       }
-      if (message.type === 'peer_left' && localPlayerRef.current === 1) {
-        setCoop((current) => ({ ...current, phase: 'hosting', error: 'Your partner disconnected. The room is still open.' }));
+      if (message.type === 'peer_left' && localPlayerRef.current) {
         const source = gameRef.current;
-        publish({ ...source, status: 'paused', message: 'Partner disconnected — waiting for player 2' });
+        const peerName = source.mode === 'duel' ? 'rival' : 'partner';
+        const reconnecting = message.reconnecting !== false;
+        setCoop((current) => ({
+          ...current,
+          phase: localPlayerRef.current === 1 ? 'hosting' : 'connected',
+          error: reconnecting
+            ? `Your ${peerName} refreshed or disconnected. Waiting for them to return.`
+            : `Your ${peerName} left the room.`,
+        }));
+        publish({
+          ...source,
+          status: source.status === 'gameover' ? 'gameover' : 'paused',
+          message: `${peerName === 'rival' ? 'Rival' : 'Partner'} disconnected — board preserved`,
+        }, localPlayerRef.current === 1);
+        return;
+      }
+      if (message.type === 'peer_rejoined') {
+        setCoop((current) => ({ ...current, phase: 'connected', error: '' }));
+        const source = gameRef.current;
+        publish({ ...source, message: 'Player reconnected — resume when ready' }, localPlayerRef.current === 1);
+        return;
+      }
+      if (message.type === 'peer_expired') {
+        setCoop((current) => ({ ...current, phase: 'hosting', error: 'Player 2 did not reconnect. The room is open for a new player.' }));
         return;
       }
       if (message.type === 'room_closed') {
         closeCoopSocket();
-        const nextGame = initialGame('coop');
+        multiplayerSessionRef.current = null;
+        clearMultiplayerSession();
+        const nextGame = initialGame(gameRef.current.mode === 'duel' ? 'duel' : 'coop');
         gameRef.current = nextGame;
         setGame(nextGame);
         setCoop((current) => ({
           ...current,
           phase: 'error',
           playerId: null,
-          error: typeof message.reason === 'string' ? message.reason : 'The host closed the pond.',
+          error: typeof message.reason === 'string' ? message.reason : 'The host closed the room.',
         }));
+        return;
+      }
+      if (message.type === 'resume_rejected') {
+        closeCoopSocket();
+        multiplayerSessionRef.current = null;
+        clearMultiplayerSession();
+        const nextGame = initialGame('solo');
+        gameRef.current = nextGame;
+        setGame(nextGame);
+        setCoop({
+          phase: 'error',
+          roomCode: '',
+          playerId: null,
+          error: typeof message.message === 'string' ? message.message : 'That saved room has expired.',
+        });
         return;
       }
       if (message.type === 'error') {
@@ -685,7 +1041,7 @@ export default function TetrisGame() {
       if (gameRef.current.status !== 'playing' || action === 'restart') return;
 
       const source = gameRef.current;
-      const player = source.mode === 'coop' ? localPlayerRef.current : 1;
+      const player = source.mode !== 'solo' ? localPlayerRef.current : 1;
       if (player && !(event.repeat && (action === 'drop' || action === 'rotate'))) {
         sendAction(player, action as Action);
       }
@@ -697,7 +1053,7 @@ export default function TetrisGame() {
 
   useEffect(() => {
     if (game.status !== 'playing') return;
-    if (game.mode === 'coop' && localPlayerRef.current !== 1) return;
+    if (game.mode !== 'solo' && localPlayerRef.current !== 1) return;
     const speed = Math.max(120, 820 - (game.level - 1) * 60);
     const timer = window.setInterval(() => {
       const players = [...gameRef.current.active]
@@ -708,32 +1064,48 @@ export default function TetrisGame() {
     return () => window.clearInterval(timer);
   }, [game.level, game.mode, game.status, movePlayer]);
 
+  useEffect(() => {
+    const saved = multiplayerSessionRef.current;
+    if (!saved) return;
+    connectToCoop('resume', saved.roomCode, saved.gameMode, saved.resumeToken, saved.game);
+  }, [connectToCoop]);
+
   useEffect(() => () => closeCoopSocket(), [closeCoopSocket]);
 
-  const renderedCells = useMemo(() => {
-    const cells = new Map<string, { cell: Cell; ghost?: boolean; active?: boolean }>();
-    game.board.forEach((row, y) => row.forEach((cell, x) => {
-      if (cell) cells.set(`${x}:${y}`, { cell });
-    }));
-    game.active.forEach((piece) => {
-      getCells(getGhost(piece, game.board, game.active, game.cols)).forEach(({ x, y }) => {
-        if (y >= 0 && !cells.has(`${x}:${y}`)) cells.set(`${x}:${y}`, { cell: { type: piece.type, owner: piece.player }, ghost: true });
+  const renderedBoards = useMemo(() => {
+    const result = {} as Record<PlayerId, Map<string, { cell: Cell; ghost?: boolean; active?: boolean }>>;
+    const players: PlayerId[] = game.mode === 'duel' ? [1, 2] : [1];
+    players.forEach((player) => {
+      const cells = new Map<string, { cell: Cell; ghost?: boolean; active?: boolean }>();
+      const board = getPlayerBoard(game, player);
+      const pieces = game.mode === 'duel'
+        ? game.active.filter((piece) => piece.player === player)
+        : game.active;
+      board.forEach((row, y) => row.forEach((cell, x) => {
+        if (cell) cells.set(`${x}:${y}`, { cell });
+      }));
+      pieces.forEach((piece) => {
+        getCells(getGhost(piece, board, pieces, game.cols)).forEach(({ x, y }) => {
+          if (y >= 0 && !cells.has(`${x}:${y}`)) cells.set(`${x}:${y}`, { cell: { type: piece.type, owner: piece.player }, ghost: true });
+        });
       });
-    });
-    game.active.forEach((piece) => {
-      getCells(piece).forEach(({ x, y }) => {
-        if (y >= 0) cells.set(`${x}:${y}`, { cell: { type: piece.type, owner: piece.player }, active: true });
+      pieces.forEach((piece) => {
+        getCells(piece).forEach(({ x, y }) => {
+          if (y >= 0) cells.set(`${x}:${y}`, { cell: { type: piece.type, owner: piece.player }, active: true });
+        });
       });
+      result[player] = cells;
     });
-    return cells;
-  }, [game.active, game.board, game.cols]);
+    if (!result[2]) result[2] = new Map();
+    return result;
+  }, [game]);
 
   if (game.status === 'ready') {
     return (
       <main className="relative min-h-screen overflow-hidden bg-[#061008] px-4 py-10 text-white sm:px-8">
         <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(rgba(151,255,99,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(151,255,99,.05) 1px, transparent 1px)', backgroundSize: '34px 34px' }} />
         <img src={shkermitImage} alt="" className="pointer-events-none absolute -bottom-20 -right-24 w-[440px] opacity-15 grayscale" />
-        <section className="relative mx-auto max-w-5xl">
+        <section className="relative mx-auto max-w-6xl">
           <a href="/games" className="mb-10 inline-flex items-center gap-2 text-xs text-lime-200/60 transition hover:text-lime-200">← BACK TO THE ARCADE</a>
           <div className="mb-12 max-w-3xl">
             <p className="mb-4 text-xs tracking-[0.35em] text-lime-300">SHKERMIT ARCADE / 03</p>
@@ -741,10 +1113,12 @@ export default function TetrisGame() {
             <p className="mt-6 max-w-xl text-sm leading-7 text-white/55 sm:text-base">Classic falling blocks, remixed for the pond. Clear lines, build combos, and charge Shkermit's emergency Frog Flush.</p>
           </div>
 
-          <div className="grid max-w-4xl gap-5 md:grid-cols-2">
+          <div className="grid max-w-6xl gap-5 md:grid-cols-2 lg:grid-cols-3">
             <button
               onClick={() => {
-                closeCoopSocket();
+                closeCoopSocket(true);
+                multiplayerSessionRef.current = null;
+                clearMultiplayerSession();
                 setCoop(initialCoop());
                 startGame('solo');
               }}
@@ -763,7 +1137,7 @@ export default function TetrisGame() {
               {(coop.phase === 'idle' || coop.phase === 'error') && (
                 <div className="mt-6 space-y-3">
                   {coop.error && <p role="alert" className="rounded-lg border border-red-300/20 bg-red-400/10 p-3 text-[10px] leading-5 text-red-100">{coop.error}</p>}
-                  <button onClick={() => connectToCoop('create')} className="w-full rounded-lg bg-pink-200 px-4 py-3 text-[10px] text-[#1b0715] transition hover:bg-pink-100">CREATE A POND</button>
+                  <button onClick={() => connectToCoop('create', '', 'coop')} className="w-full rounded-lg bg-pink-200 px-4 py-3 text-[10px] text-[#1b0715] transition hover:bg-pink-100">CREATE A CO-OP POND</button>
                   <div className="flex gap-2">
                     <input
                       value={joinCode}
@@ -772,8 +1146,8 @@ export default function TetrisGame() {
                         if (event.key === 'Enter' && joinCode.length === 5) connectToCoop('join', joinCode);
                       }}
                       maxLength={5}
-                      aria-label="Co-op room code"
-                      placeholder="POND CODE"
+                      aria-label="Multiplayer room code"
+                      placeholder="ROOM CODE"
                       className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-3 text-center text-sm uppercase tracking-[0.25em] text-white outline-none focus:border-pink-200/60"
                     />
                     <button disabled={joinCode.length !== 5} onClick={() => connectToCoop('join', joinCode)} className="rounded-lg border border-pink-200/30 px-4 py-3 text-[10px] text-pink-100 disabled:cursor-not-allowed disabled:opacity-35">JOIN</button>
@@ -781,9 +1155,9 @@ export default function TetrisGame() {
                 </div>
               )}
 
-              {coop.phase === 'connecting' && <p className="mt-6 animate-pulse text-[10px] text-pink-100/70">OPENING THE POND…</p>}
+              {coop.phase === 'connecting' && game.mode !== 'duel' && <p className="mt-6 animate-pulse text-[10px] text-pink-100/70">OPENING THE POND…</p>}
 
-              {coop.phase === 'hosting' && (
+              {coop.phase === 'hosting' && game.mode === 'coop' && (
                 <div className="mt-6 rounded-xl border border-pink-200/20 bg-black/25 p-4 text-center">
                   <p className="text-[9px] text-white/40">SHARE THIS POND CODE</p>
                   <p className="mt-2 text-3xl tracking-[0.22em] text-pink-100">{coop.roomCode}</p>
@@ -795,16 +1169,39 @@ export default function TetrisGame() {
                 </div>
               )}
 
-              {coop.phase === 'connected' && <p className="mt-6 animate-pulse text-[10px] text-pink-100/70">PARTNER FOUND · SYNCING THE STACK…</p>}
+              {coop.phase === 'connected' && game.mode === 'coop' && <p className="mt-6 animate-pulse text-[10px] text-pink-100/70">PARTNER FOUND · SYNCING THE STACK…</p>}
+            </div>
+
+            <div className="rounded-2xl border border-orange-300/25 bg-orange-300/[0.055] p-7">
+              <div className="mb-7 flex items-start justify-between"><span className="rounded-full border border-orange-200/20 px-3 py-1 text-[10px] text-orange-100/70">2 PLAYERS · VERSUS</span><span className="text-3xl">▦⚔▦</span></div>
+              <h2 className="text-2xl text-orange-200">SWAMP DUEL</h2>
+              <p className="mt-3 text-xs leading-6 text-white/45">Race on separate boards. Clear 2, 3, or 4 lines to send 1, 2, or 4 garbage rows. First frog to top out loses.</p>
+
+              {(coop.phase === 'idle' || coop.phase === 'error') && (
+                <button onClick={() => connectToCoop('create', '', 'duel')} className="mt-6 w-full rounded-lg bg-orange-200 px-4 py-3 text-[10px] text-[#1b1007] transition hover:bg-orange-100">CREATE A DUEL</button>
+              )}
+              {coop.phase === 'connecting' && game.mode === 'duel' && <p className="mt-6 animate-pulse text-[10px] text-orange-100/70">OPENING THE ARENA…</p>}
+              {coop.phase === 'hosting' && game.mode === 'duel' && (
+                <div className="mt-6 rounded-xl border border-orange-200/20 bg-black/25 p-4 text-center">
+                  <p className="text-[9px] text-white/40">SHARE THIS DUEL CODE</p>
+                  <p className="mt-2 text-3xl tracking-[0.22em] text-orange-100">{coop.roomCode}</p>
+                  <p className="mt-3 animate-pulse text-[9px] text-white/45">WAITING FOR YOUR RIVAL…</p>
+                  <div className="mt-4 flex justify-center gap-4 text-[9px]">
+                    <button onClick={() => void navigator.clipboard?.writeText(coop.roomCode)} className="text-orange-100/70 underline">COPY CODE</button>
+                    <button onClick={leaveCoop} className="text-white/35 underline">CANCEL</button>
+                  </div>
+                </div>
+              )}
+              {coop.phase === 'connected' && game.mode === 'duel' && <p className="mt-6 animate-pulse text-[10px] text-orange-100/70">RIVAL FOUND · PREPARING THE ARENA…</p>}
             </div>
           </div>
 
-          <section className="mt-5 max-w-4xl rounded-2xl border border-white/10 bg-white/[0.035] p-5 sm:p-7" aria-labelledby="keyboard-controls-title">
+          <section className="mt-5 max-w-6xl rounded-2xl border border-white/10 bg-white/[0.035] p-5 sm:p-7" aria-labelledby="keyboard-controls-title">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="text-[9px] tracking-[0.22em] text-white/35">LOCAL SETTINGS</p>
                 <h2 id="keyboard-controls-title" className="mt-2 text-lg text-white">YOUR KEYBOARD CONTROLS</h2>
-                <p className="mt-2 max-w-xl text-[10px] leading-5 text-white/40">These keys control you in both solo and online co-op, whether you are Player 1 or Player 2. They are saved on this device.</p>
+                <p className="mt-2 max-w-xl text-[10px] leading-5 text-white/40">These keys control you in solo, co-op, and duels, whether you are Player 1 or Player 2. They are saved on this device.</p>
               </div>
               <button onClick={resetBindings} className="rounded-lg border border-white/10 px-3 py-2 text-[9px] text-white/40 transition hover:bg-white/8 hover:text-white/70">RESET DEFAULTS</button>
             </div>
@@ -829,7 +1226,7 @@ export default function TetrisGame() {
           </section>
 
           <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3 text-[10px] text-white/35">
-            <span>7-BAG RANDOMIZER</span><span>GHOST PIECES</span><span>REAL-TIME CO-OP</span><span>CUSTOM KEYS</span><span>TOUCH READY</span>
+            <span>7-BAG RANDOMIZER</span><span>GHOST PIECES</span><span>REAL-TIME MULTIPLAYER</span><span>GARBAGE ATTACKS</span><span>CUSTOM KEYS</span><span>TOUCH READY</span>
           </div>
         </section>
       </main>
@@ -848,71 +1245,77 @@ export default function TetrisGame() {
           <div className="flex items-center gap-2 text-[9px]">
             <span className={`h-2 w-2 rounded-full ${game.status === 'playing' ? 'animate-pulse bg-lime-300' : 'bg-yellow-300'}`} />
             <span className="text-white/45">
-              {game.mode === 'coop' ? `POND PAIR · P${coop.playerId} · ${coop.roomCode}` : 'SOLO RUN'} · LVL {game.level}
+              {game.mode === 'coop'
+                ? `POND PAIR · P${coop.playerId} · ${coop.roomCode}`
+                : game.mode === 'duel' ? `SWAMP DUEL · P${coop.playerId} · ${coop.roomCode}` : 'SOLO RUN'} · LVL {game.level}
             </span>
           </div>
         </header>
 
-        <div className="grid items-start gap-5 xl:grid-cols-[220px_minmax(320px,560px)_250px] xl:justify-center">
+        <div className="grid items-start gap-5 xl:grid-cols-[220px_minmax(320px,660px)_250px] xl:justify-center">
           <aside className="order-2 grid grid-cols-3 gap-3 xl:order-1 xl:grid-cols-1">
             <div className="rounded-xl border border-white/8 bg-white/[0.035] p-4">
               <p className="text-[9px] tracking-[0.2em] text-white/35">SCORE</p>
-              <p className="mt-2 text-xl text-white sm:text-2xl">{game.score.toLocaleString()}</p>
+              <p className="mt-2 text-xl text-white sm:text-2xl">{(game.mode === 'duel' ? game.playerStats[coop.playerId || 1].score : game.score).toLocaleString()}</p>
             </div>
             <div className="rounded-xl border border-white/8 bg-white/[0.035] p-4">
-              <p className="text-[9px] tracking-[0.2em] text-white/35">LINES / BEST</p>
-              <p className="mt-2 text-sm text-lime-200">{game.lines} <span className="text-white/20">/</span> {game.best.toLocaleString()}</p>
+              <p className="text-[9px] tracking-[0.2em] text-white/35">{game.mode === 'duel' ? 'YOUR / RIVAL LINES' : 'LINES / BEST'}</p>
+              <p className="mt-2 text-sm text-lime-200">
+                {game.mode === 'duel'
+                  ? <>{game.playerStats[coop.playerId || 1].lines} <span className="text-white/20">/</span> {game.playerStats[(coop.playerId || 1) === 1 ? 2 : 1].lines}</>
+                  : <>{game.lines} <span className="text-white/20">/</span> {game.best.toLocaleString()}</>}
+              </p>
             </div>
             <div className="rounded-xl border border-white/8 bg-white/[0.035] p-4">
               <p className="text-[9px] tracking-[0.2em] text-white/35">COMBO</p>
-              <p className="mt-2 text-sm text-pink-200">{game.combo > 0 ? `${game.combo + 1}×` : '—'}</p>
+              <p className="mt-2 text-sm text-pink-200">{(game.mode === 'duel' ? game.playerStats[coop.playerId || 1].combo : game.combo) > 0 ? `${(game.mode === 'duel' ? game.playerStats[coop.playerId || 1].combo : game.combo) + 1}×` : '—'}</p>
             </div>
-            <div className="col-span-3 rounded-xl border border-lime-300/15 bg-lime-300/[0.04] p-4 xl:col-span-1">
-              <div className="mb-2 flex justify-between text-[9px]"><span className="text-lime-200">FROG FLUSH</span><span className="text-white/40">{game.meter}%</span></div>
-              <div className="h-2 overflow-hidden rounded-full bg-black/40"><div className="h-full bg-linear-to-r from-lime-500 to-yellow-200 transition-all" style={{ width: `${game.meter}%` }} /></div>
-              <p className="mt-3 text-[9px] leading-4 text-white/35">Fill by clearing lines. Press <span className="text-white">{keyBindings.frogFlush.label}</span> at 100% to wash away two danger rows.</p>
-            </div>
+            {game.mode === 'duel' ? (
+              <div className="col-span-3 rounded-xl border border-orange-300/15 bg-orange-300/[0.04] p-4 xl:col-span-1">
+                <p className="text-[9px] text-orange-200">GARBAGE ATTACKS</p>
+                <p className="mt-3 text-[9px] leading-5 text-white/40">2 lines → 1 row<br />3 lines → 2 rows<br />4 lines → 4 rows</p>
+              </div>
+            ) : (
+              <div className="col-span-3 rounded-xl border border-lime-300/15 bg-lime-300/[0.04] p-4 xl:col-span-1">
+                <div className="mb-2 flex justify-between text-[9px]"><span className="text-lime-200">FROG FLUSH</span><span className="text-white/40">{game.meter}%</span></div>
+                <div className="h-2 overflow-hidden rounded-full bg-black/40"><div className="h-full bg-linear-to-r from-lime-500 to-yellow-200 transition-all" style={{ width: `${game.meter}%` }} /></div>
+                <p className="mt-3 text-[9px] leading-4 text-white/35">Fill by clearing lines. Press <span className="text-white">{keyBindings.frogFlush.label}</span> at 100% to wash away two danger rows.</p>
+              </div>
+            )}
           </aside>
 
           <section className="order-1 flex flex-col items-center xl:order-2">
-            <div className="mb-2 flex w-full items-center justify-between gap-3 text-[9px] text-white/35" style={{ maxWidth: game.mode === 'coop' ? 560 : 400 }}>
-              <span className={game.mode === 'coop' ? 'text-pink-200' : 'text-lime-200'}>{game.mode === 'coop' ? 'CO-OP' : 'SOLO'}</span><span className="text-right">{game.message}</span><span />
+            <div className="mb-2 flex w-full items-center justify-between gap-3 text-[9px] text-white/35" style={{ maxWidth: game.mode === 'duel' ? 640 : game.mode === 'coop' ? 560 : 400 }}>
+              <span className={game.mode === 'duel' ? 'text-orange-200' : game.mode === 'coop' ? 'text-pink-200' : 'text-lime-200'}>{game.mode === 'duel' ? 'DUEL' : game.mode === 'coop' ? 'CO-OP' : 'SOLO'}</span><span className="text-right">{game.message}</span><span />
             </div>
-            <div
-              className="relative grid overflow-hidden rounded-xl border-2 border-lime-200/30 bg-[#020704] p-1 shadow-[0_0_60px_rgba(118,255,76,0.08)]"
-              style={{
-                width: game.mode === 'coop' ? 'min(92vw, 560px)' : 'min(82vw, 400px)',
-                aspectRatio: `${game.cols} / ${ROWS}`,
-                gridTemplateColumns: `repeat(${game.cols}, minmax(0, 1fr))`,
-                gridTemplateRows: `repeat(${ROWS}, minmax(0, 1fr))`,
-                gap: '1px',
-              }}
-            >
-              {Array.from({ length: ROWS * game.cols }, (_, index) => {
-                const x = index % game.cols;
-                const y = Math.floor(index / game.cols);
-                const rendered = renderedCells.get(`${x}:${y}`);
-                const color = rendered ? PIECE_COLORS[rendered.cell.type] : undefined;
-                const ownerColor = rendered ? PLAYER_COLORS[rendered.cell.owner] : undefined;
-                return (
-                  <span
-                    key={index}
-                    className="rounded-[2px] bg-white/[0.025]"
-                    style={rendered ? {
-                      background: rendered.ghost ? `${color}1f` : color,
-                      border: rendered.ghost ? `1px solid ${color}65` : undefined,
-                      boxShadow: rendered.active ? `inset 0 0 0 2px ${ownerColor}, inset 2px 2px 0 rgba(255,255,255,.3)` : `inset 0 0 0 1px ${ownerColor}90, inset 2px 2px 0 rgba(255,255,255,.18)`,
-                      opacity: rendered.ghost ? 0.8 : 1,
-                    } : undefined}
-                  />
-                );
-              })}
-
+            <div className="relative">
+              {game.mode === 'duel' ? (
+                <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                  {([1, 2] as PlayerId[]).map((player) => (
+                    <BoardGrid
+                      key={player}
+                      cells={renderedBoards[player]}
+                      cols={game.cols}
+                      width="min(44vw, 300px)"
+                      accent={PLAYER_COLORS[player]}
+                      label={`P${player}${coop.playerId === player ? ' · YOU' : ' · RIVAL'} · ${game.playerStats[player].score.toLocaleString()} PTS`}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <BoardGrid
+                  cells={renderedBoards[1]}
+                  cols={game.cols}
+                  width={game.mode === 'coop' ? 'min(92vw, 560px)' : 'min(82vw, 400px)'}
+                  accent="#b5ff4a"
+                  label=""
+                />
+              )}
               {(game.status === 'paused' || game.status === 'gameover') && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#020704]/90 p-8 text-center backdrop-blur-sm">
                   <img src={shkermitImage} alt="Shkermit" className="mb-4 h-24 w-24 object-contain" />
-                  <p className="text-[10px] tracking-[0.3em] text-lime-300">{game.status === 'paused' ? 'POND BREAK' : 'STACK OVER'}</p>
-                  <h2 className="mt-3 text-2xl">{game.status === 'paused' ? 'PAUSED' : `${game.score.toLocaleString()} PTS`}</h2>
+                  <p className="text-[10px] tracking-[0.3em] text-lime-300">{game.status === 'paused' ? 'POND BREAK' : game.mode === 'duel' ? 'DUEL OVER' : 'STACK OVER'}</p>
+                  <h2 className="mt-3 text-2xl">{game.status === 'paused' ? 'PAUSED' : game.mode === 'duel' ? `PLAYER ${game.winner} WINS` : `${game.score.toLocaleString()} PTS`}</h2>
                   <div className="mt-6 flex gap-2">
                     {game.status === 'paused' && <button onClick={() => sendCommand('toggle_pause')} className="rounded-lg bg-lime-300 px-4 py-3 text-[10px] text-[#061008]">KEEP STACKING</button>}
                     <button onClick={() => sendCommand('restart')} className="rounded-lg border border-white/15 bg-white/8 px-4 py-3 text-[10px]">RESTART</button>
@@ -920,7 +1323,7 @@ export default function TetrisGame() {
                   {game.status === 'gameover' && (
                     <button
                       onClick={() => {
-                        if (game.mode === 'coop') leaveCoop();
+                        if (game.mode !== 'solo') leaveCoop();
                         else publish({ ...initialGame('solo'), best: game.best });
                       }}
                       className="mt-4 text-[9px] text-white/40 underline"
@@ -933,12 +1336,12 @@ export default function TetrisGame() {
 
           <aside className="order-3 space-y-3">
             <div className="grid gap-3">
-              {(game.mode === 'coop' ? [1, 2] as PlayerId[] : [1] as PlayerId[]).map((player) => {
+              {(game.mode !== 'solo' ? [1, 2] as PlayerId[] : [1] as PlayerId[]).map((player) => {
                 const isLocalPlayer = game.mode === 'solo' || coop.playerId === player;
                 return (
                   <div key={player} className="flex items-center justify-between rounded-xl border bg-white/[0.035] p-4" style={{ borderColor: `${PLAYER_COLORS[player]}33` }}>
                     <div>
-                      <p className="text-[9px]" style={{ color: PLAYER_COLORS[player] }}>{game.mode === 'coop' ? `PLAYER ${player}${isLocalPlayer ? ' · YOU' : ''}` : 'NEXT PIECE'}</p>
+                      <p className="text-[9px]" style={{ color: PLAYER_COLORS[player] }}>{game.mode !== 'solo' ? `PLAYER ${player}${isLocalPlayer ? ' · YOU' : ''}` : 'NEXT PIECE'}</p>
                       <p className="mt-2 text-[9px] leading-4 text-white/35">
                         {isLocalPlayer
                           ? <>{keyBindings.left.label} {keyBindings.right.label} move<br />{keyBindings.rotate.label} rotate · {keyBindings.drop.label} drop</>
@@ -953,17 +1356,17 @@ export default function TetrisGame() {
             <div className="flex gap-2">
               <button onClick={() => sendCommand('toggle_pause')} className="flex-1 rounded-lg border border-white/10 bg-white/[0.04] py-3 text-[9px] text-white/50 hover:bg-white/10">{game.status === 'paused' ? 'RESUME' : 'PAUSE'} · {keyBindings.pause.label}</button>
               <button onClick={() => sendCommand('restart')} className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3 text-[9px] text-white/50 hover:bg-white/10">↻</button>
-              {game.mode === 'coop' && <button onClick={leaveCoop} className="rounded-lg border border-pink-200/15 bg-pink-300/[0.04] px-3 py-3 text-[9px] text-pink-100/55">LEAVE</button>}
+              {game.mode !== 'solo' && <button onClick={leaveCoop} className="rounded-lg border border-pink-200/15 bg-pink-300/[0.04] px-3 py-3 text-[9px] text-pink-100/55">LEAVE</button>}
             </div>
           </aside>
         </div>
 
         <div className="mt-6 grid gap-3">
           <div className="rounded-xl border border-lime-300/10 bg-white/[0.025] p-3">
-            <p className="mb-2 text-center text-[9px]" style={{ color: PLAYER_COLORS[game.mode === 'coop' ? coop.playerId || 1 : 1] }}>
-              {game.mode === 'coop' ? `PLAYER ${coop.playerId} TOUCH CONTROLS` : 'TOUCH CONTROLS'}
+            <p className="mb-2 text-center text-[9px]" style={{ color: PLAYER_COLORS[game.mode !== 'solo' ? coop.playerId || 1 : 1] }}>
+              {game.mode !== 'solo' ? `PLAYER ${coop.playerId} TOUCH CONTROLS` : 'TOUCH CONTROLS'}
             </p>
-            <ControlPad player={game.mode === 'coop' ? coop.playerId || 1 : 1} onAction={sendAction} />
+            <ControlPad player={game.mode !== 'solo' ? coop.playerId || 1 : 1} onAction={sendAction} />
           </div>
         </div>
       </div>

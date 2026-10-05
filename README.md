@@ -30,7 +30,7 @@ npm run dev
 
 Vite proxies `/api` requests to `http://localhost:3001`. Prisma creates the SQLite database at `backend/data/shkermit.db` when the migrations are applied. The database file is ignored by Git.
 
-Shkermit Stacks includes an online two-player co-op mode. The first player creates a five-character pond code and the second joins it from another browser. Vite proxies `/ws/tetris` to the backend during development; in production the Express server handles the WebSocket upgrade on the same origin as the site. Rooms are temporary and live only while their host is connected.
+Shkermit Stacks includes online two-player co-op and duel modes. The first player creates a five-character room code and the second joins it from another browser. Co-op uses one shared board, while duel gives each player a separate board and turns multi-line clears into garbage attacks. Refreshing automatically reclaims the same player seat and board; the server reserves disconnected seats for 30 seconds before expiring them. Vite proxies `/ws/tetris` to the backend during development; in production the Express server handles the WebSocket upgrade on the same origin as the site.
 
 The account API supports registration, email confirmation, login/logout, session restore, profile updates, password changes, and account deletion. Authentication uses an opaque token in an `HttpOnly`, `SameSite=Strict` cookie; only its SHA-256 hash is saved in SQLite. Passwords are hashed with bcrypt. Email confirmation tokens are also hashed, expire after 24 hours by default, and can only be used once.
 
