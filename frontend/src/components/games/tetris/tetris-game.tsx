@@ -1,15 +1,18 @@
+import { useEffect, useState } from 'react';
 import shkermitImage from '../../../assets/img/3 TeteShkermit RTX.png';
 import { BoardGrid } from './board-grid';
 import { KEYBOARD_ACTION_LABELS, KEYBOARD_ACTIONS, PLAYER_COLORS } from './constants';
 import { ControlPad } from './control-pad';
 import { MiniPiece } from './mini-piece';
 import type { PlayerId, TetrisGameController } from './types';
+import antoineLoupImage from '../../../assets/img/antoine-loup.jpg';
 
 type TetrisGameProps = {
   controller: TetrisGameController;
 };
 
 export default function TetrisGame({ controller }: TetrisGameProps) {
+  const [isAntoineLoupOpen, setIsAntoineLoupOpen] = useState(false);
   const {
     game,
     coop,
@@ -27,6 +30,20 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
     renderedBoards,
     returnToMenu,
   } = controller;
+
+  useEffect(() => {
+    if (!isAntoineLoupOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsAntoineLoupOpen(false);
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [isAntoineLoupOpen]);
 
   if (game.status === 'ready') {
     return (
@@ -147,10 +164,56 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
             {bindingAction && <p className="mt-3 text-[9px] text-lime-100/55">Press any key for {KEYBOARD_ACTION_LABELS[bindingAction]}. Press Escape to cancel. If that key is already used, the two bindings will swap.</p>}
           </section>
 
+          <button
+            type="button"
+            onClick={() => setIsAntoineLoupOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={isAntoineLoupOpen}
+            className="mt-8 flex w-fit cursor-zoom-in items-center gap-5 rounded-2xl border border-lime-200/15 bg-lime-200/4 px-5 py-4 text-left shadow-[0_0_28px_rgba(117,255,76,0.06)] transition hover:border-lime-200/35 hover:bg-lime-200/7 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-lime-200/70"
+          >
+            <img src={antoineLoupImage} alt="Antoine Loup" className="h-20 w-20 rounded-full border border-lime-200/30 object-cover ring-2 ring-lime-200/10" />
+            <span className="text-xs leading-6 tracking-[0.16em] text-lime-200/60">APPROVED BY<br /><span className="text-lg text-lime-200/95">ANTOINE LOUP</span><br /><span className="text-[10px] text-white/35">BEST PLAYER OF TETRIS IN SWITZERLAND</span></span>
+          </button>
+
           <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3 text-[10px] text-white/35">
             <span>7-BAG RANDOMIZER</span><span>GHOST PIECES</span><span>REAL-TIME MULTIPLAYER</span><span>GARBAGE ATTACKS</span><span>CUSTOM KEYS</span><span>TOUCH READY</span>
           </div>
         </section>
+
+        {isAntoineLoupOpen && (
+          <div
+            className="fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/85 p-4 backdrop-blur-md sm:p-8"
+            onClick={() => setIsAntoineLoupOpen(false)}
+            role="presentation"
+          >
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="antoine-loup-dialog-title"
+              className="relative cursor-default rounded-2xl border border-lime-200/25 bg-[#061008] p-3 shadow-[0_0_80px_rgba(117,255,76,0.18)] sm:p-5"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setIsAntoineLoupOpen(false)}
+                autoFocus
+                aria-label="Close Antoine Loup image"
+                className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-black/65 text-lg text-white/70 transition hover:bg-black hover:text-white focus-visible:outline-2 focus-visible:outline-lime-200"
+              >
+                ×
+              </button>
+              <img
+                src={antoineLoupImage}
+                alt="Antoine Loup"
+                className="max-h-[78vh] max-w-[88vw] rounded-xl object-contain sm:max-w-4xl"
+              />
+              <div className="px-2 pb-1 pt-4 text-center">
+                <h2 id="antoine-loup-dialog-title" className="text-lg text-lime-200">ANTOINE LOUP</h2>
+                <p className="mt-1 text-[10px] tracking-[0.16em] text-white/40">BEST PLAYER OF TETRIS IN SWITZERLAND</p>
+              </div>
+            </section>
+          </div>
+        )}
       </main>
     );
   }
