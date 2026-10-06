@@ -43,6 +43,18 @@ import type {
   SavedMultiplayerSession,
 } from '../../components/games/tetris/types';
 
+const getMessagePlayerNames = (value: unknown): Record<PlayerId, string | null> => {
+  const names = value && typeof value === 'object'
+    ? value as Partial<Record<PlayerId, unknown>>
+    : {};
+  const cleanName = (name: unknown) => {
+    if (typeof name !== 'string') return null;
+    const cleaned = name.trim();
+    return cleaned ? cleaned.slice(0, 32) : null;
+  };
+  return { 1: cleanName(names[1]), 2: cleanName(names[2]) };
+};
+
 function useTetrisGame() {
   const [game, setGame] = useState<GameState>(initialGame);
   const [coop, setCoop] = useState<CoopState>(initialCoop);
@@ -416,6 +428,7 @@ function useTetrisGame() {
       phase: 'connecting',
       roomCode,
       playerId: kind === 'resume' ? multiplayerSessionRef.current?.playerId || null : null,
+      playerNames: { 1: null, 2: null },
       error: kind === 'resume' ? 'Restoring your board…' : '',
     });
 
@@ -507,7 +520,13 @@ function useTetrisGame() {
           game: gameRef.current,
         };
         persistMultiplayerSession(multiplayerSessionRef.current);
-        setCoop({ phase: 'hosting', roomCode: message.roomCode, playerId: 1, error: '' });
+        setCoop({
+          phase: 'hosting',
+          roomCode: message.roomCode,
+          playerId: 1,
+          playerNames: getMessagePlayerNames(message.playerNames),
+          error: '',
+        });
         return;
       }
       if (message.type === 'room_joined'
@@ -526,7 +545,13 @@ function useTetrisGame() {
           game: nextGame,
         };
         persistMultiplayerSession(multiplayerSessionRef.current);
-        setCoop({ phase: 'connected', roomCode: message.roomCode, playerId: 2, error: '' });
+        setCoop({
+          phase: 'connected',
+          roomCode: message.roomCode,
+          playerId: 2,
+          playerNames: getMessagePlayerNames(message.playerNames),
+          error: '',
+        });
         return;
       }
       if (message.type === 'room_resumed'
@@ -557,13 +582,19 @@ function useTetrisGame() {
           phase: playerId === 1 && !peerConnected ? 'hosting' : 'connected',
           roomCode: message.roomCode,
           playerId,
+          playerNames: getMessagePlayerNames(message.playerNames),
           error: peerConnected ? '' : 'Your game was restored. Waiting for the other player to reconnect.',
         });
         publish(resumedState);
         return;
       }
       if (message.type === 'peer_joined' && localPlayerRef.current === 1) {
-        setCoop((current) => ({ ...current, phase: 'connected', error: '' }));
+        setCoop((current) => ({
+          ...current,
+          phase: 'connected',
+          playerNames: getMessagePlayerNames(message.playerNames),
+          error: '',
+        }));
         return;
       }
       if (message.type === 'game_state' && localPlayerRef.current && isGameState(message.state)) {
@@ -583,11 +614,21 @@ function useTetrisGame() {
         return;
       }
       if (message.type === 'peer_rejoined') {
-        setCoop((current) => ({ ...current, phase: 'connected', error: '' }));
+        setCoop((current) => ({
+          ...current,
+          phase: 'connected',
+          playerNames: getMessagePlayerNames(message.playerNames),
+          error: '',
+        }));
         return;
       }
       if (message.type === 'peer_expired') {
-        setCoop((current) => ({ ...current, phase: 'hosting', error: 'Player 2 did not reconnect. The room is open for a new player.' }));
+        setCoop((current) => ({
+          ...current,
+          phase: 'hosting',
+          playerNames: { ...current.playerNames, 2: null },
+          error: 'Player 2 did not reconnect. The room is open for a new player.',
+        }));
         return;
       }
       if (message.type === 'room_closed') {
@@ -616,6 +657,7 @@ function useTetrisGame() {
           phase: 'error',
           roomCode: '',
           playerId: null,
+          playerNames: { 1: null, 2: null },
           error: typeof message.message === 'string' ? message.message : 'That saved room has expired.',
         });
         return;

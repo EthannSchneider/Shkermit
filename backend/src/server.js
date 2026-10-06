@@ -3,11 +3,30 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createApp } from "./app.js";
+import { SESSION_COOKIE_NAME } from "./config/security.js";
 import { createDatabase } from "./database/index.js";
 import { createSessionModel } from "./models/session.model.js";
 import { createEmailVerificationModel } from "./models/email-verification.model.js";
+import { createUserModel } from "./models/user.model.js";
 import { createMailer } from "./services/mailer.service.js";
+import { createSessionService } from "./services/session.service.js";
 import { createTetrisWebSocketServer } from "./websocket/tetris-websocket.js";
+
+function readCookie(request, name) {
+  const header = request.headers.cookie;
+  if (typeof header !== "string") return null;
+  for (const entry of header.split(";")) {
+    const separator = entry.indexOf("=");
+    if (separator < 0 || entry.slice(0, separator).trim() !== name) continue;
+    const value = entry.slice(separator + 1).trim();
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  }
+  return null;
+}
 
 const sourceDirectory = path.dirname(fileURLToPath(import.meta.url));
 const defaultDatabasePath = path.resolve(sourceDirectory, "../data/shkermit.db");
@@ -44,7 +63,10 @@ const mailer = createMailer({
 });
 
 const db = createDatabase(databaseUrl);
-await createSessionModel(db).deleteExpired(new Date());
+const sessionModel = createSessionModel(db);
+const userModel = createUserModel(db, { adminEmails });
+const sessionService = createSessionService({ sessionModel, sessionTtlMs });
+await sessionModel.deleteExpired(new Date());
 await createEmailVerificationModel(db).deleteExpired(new Date());
 
 const app = createApp({
@@ -62,7 +84,13 @@ const app = createApp({
 const server = app.listen(port, () => {
   console.log(`Shkermit API listening on http://localhost:${port}`);
 });
-const tetrisWebSockets = createTetrisWebSocketServer(server);
+const tetrisWebSockets = createTetrisWebSocketServer(server, {
+  async resolveUser(request) {
+    const token = readCookie(request, SESSION_COOKIE_NAME);
+    const session = await sessionService.findValid(token);
+    return session ? userModel.findById(session.userId) : null;
+  },
+});
 
 async function shutdown() {
   tetrisWebSockets.close();

@@ -85,6 +85,7 @@ export const initialCoop = (): CoopState => ({
   phase: 'idle',
   roomCode: '',
   playerId: null,
+  playerNames: { 1: null, 2: null },
   error: '',
 });
 

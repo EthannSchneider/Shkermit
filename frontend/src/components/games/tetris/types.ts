@@ -68,6 +68,7 @@ export type CoopState = {
   phase: CoopPhase;
   roomCode: string;
   playerId: PlayerId | null;
+  playerNames: Record<PlayerId, string | null>;
   error: string;
 };
 

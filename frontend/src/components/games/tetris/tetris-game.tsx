@@ -30,6 +30,11 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
     renderedBoards,
     returnToMenu,
   } = controller;
+  const playerLabel = (player: PlayerId) => coop.playerNames[player] || `PLAYER ${player}`;
+  const gameMessage = ([1, 2] as PlayerId[]).reduce(
+    (message, player) => message.split(`PLAYER ${player}`).join(playerLabel(player)),
+    game.message,
+  );
 
   useEffect(() => {
     if (!isAntoineLoupOpen) return;
@@ -231,8 +236,8 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
             <span className={`h-2 w-2 rounded-full ${game.status === 'playing' ? 'animate-pulse bg-lime-300' : 'bg-yellow-300'}`} />
             <span className="text-white/45">
               {game.mode === 'coop'
-                ? `POND PAIR · P${coop.playerId} · ${coop.roomCode}`
-                : game.mode === 'duel' ? `SWAMP DUEL · P${coop.playerId} · ${coop.roomCode}` : 'SOLO RUN'} · LVL {game.level}
+                ? `POND PAIR · ${playerLabel(coop.playerId || 1)} · ${coop.roomCode}`
+                : game.mode === 'duel' ? `SWAMP DUEL · ${playerLabel(coop.playerId || 1)} · ${coop.roomCode}` : 'SOLO RUN'} · LVL {game.level}
             </span>
           </div>
         </header>
@@ -271,7 +276,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
 
           <section className="order-1 flex flex-col items-center xl:order-2">
             <div className="mb-2 flex w-full items-center justify-between gap-3 text-[9px] text-white/35" style={{ maxWidth: game.mode === 'duel' ? 640 : game.mode === 'coop' ? 560 : 400 }}>
-              <span className={game.mode === 'duel' ? 'text-orange-200' : game.mode === 'coop' ? 'text-pink-200' : 'text-lime-200'}>{game.mode === 'duel' ? 'DUEL' : game.mode === 'coop' ? 'CO-OP' : 'SOLO'}</span><span className="text-right">{game.message}</span><span />
+              <span className={game.mode === 'duel' ? 'text-orange-200' : game.mode === 'coop' ? 'text-pink-200' : 'text-lime-200'}>{game.mode === 'duel' ? 'DUEL' : game.mode === 'coop' ? 'CO-OP' : 'SOLO'}</span><span className="text-right">{gameMessage}</span><span />
             </div>
             <div className="relative">
               {game.mode === 'duel' ? (
@@ -283,7 +288,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
                       cols={game.cols}
                       width="min(44vw, 300px)"
                       accent={PLAYER_COLORS[player]}
-                      label={`P${player}${coop.playerId === player ? ' · YOU' : ' · RIVAL'} · ${game.playerStats[player].score.toLocaleString()} PTS`}
+                      label={`${playerLabel(player)}${coop.playerId === player ? ' · YOU' : ' · RIVAL'} · ${game.playerStats[player].score.toLocaleString()} PTS`}
                     />
                   ))}
                 </div>
@@ -300,7 +305,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#020704]/90 p-8 text-center backdrop-blur-sm">
                   <img src={shkermitImage} alt="Shkermit" className="mb-4 h-24 w-24 object-contain" />
                   <p className="text-[10px] tracking-[0.3em] text-lime-300">{game.status === 'paused' ? 'POND BREAK' : game.mode === 'duel' ? 'DUEL OVER' : 'STACK OVER'}</p>
-                  <h2 className="mt-3 text-2xl">{game.status === 'paused' ? 'PAUSED' : game.mode === 'duel' ? `PLAYER ${game.winner} WINS` : `${game.score.toLocaleString()} PTS`}</h2>
+                  <h2 className="mt-3 text-2xl">{game.status === 'paused' ? 'PAUSED' : game.mode === 'duel' && game.winner ? `${playerLabel(game.winner)} WINS` : `${game.score.toLocaleString()} PTS`}</h2>
                   <div className="mt-6 flex gap-2">
                     {game.status === 'paused' && <button onClick={() => sendCommand('toggle_pause')} className="rounded-lg bg-lime-300 px-4 py-3 text-[10px] text-[#061008]">KEEP STACKING</button>}
                     <button onClick={() => sendCommand('restart')} className="rounded-lg border border-white/15 bg-white/8 px-4 py-3 text-[10px]">RESTART</button>
@@ -323,7 +328,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
                 return (
                   <div key={player} className="flex items-center justify-between rounded-xl border bg-white/3.5 p-4" style={{ borderColor: `${PLAYER_COLORS[player]}33` }}>
                     <div>
-                      <p className="text-[9px]" style={{ color: PLAYER_COLORS[player] }}>{game.mode !== 'solo' ? `PLAYER ${player}${isLocalPlayer ? ' · YOU' : ''}` : 'NEXT PIECE'}</p>
+                      <p className="text-[9px]" style={{ color: PLAYER_COLORS[player] }}>{game.mode !== 'solo' ? `${playerLabel(player)}${isLocalPlayer ? ' · YOU' : ''}` : 'NEXT PIECE'}</p>
                       <p className="mt-2 text-[9px] leading-4 text-white/35">
                         {isLocalPlayer
                           ? <>{keyBindings.left.label} {keyBindings.right.label} move<br />{keyBindings.rotate.label} rotate · {keyBindings.drop.label} drop</>
@@ -346,7 +351,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
         <div className="mt-6 grid gap-3">
           <div className="rounded-xl border border-lime-300/10 bg-white/2.5 p-3">
             <p className="mb-2 text-center text-[9px]" style={{ color: PLAYER_COLORS[game.mode !== 'solo' ? coop.playerId || 1 : 1] }}>
-              {game.mode !== 'solo' ? `PLAYER ${coop.playerId} TOUCH CONTROLS` : 'TOUCH CONTROLS'}
+              {game.mode !== 'solo' ? `${playerLabel(coop.playerId || 1)} TOUCH CONTROLS` : 'TOUCH CONTROLS'}
             </p>
             <ControlPad
               player={game.mode !== 'solo' ? coop.playerId || 1 : 1}

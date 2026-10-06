@@ -53,10 +53,21 @@ function isCoolingDown(client, key, cooldownMs, now) {
   return false;
 }
 
+function getPlayerNames(room) {
+  return { 1: room.hostName, 2: room.guestName };
+}
+
+function getVerifiedUsername(user) {
+  if (!user || typeof user.username !== "string") return null;
+  const username = user.username.trim();
+  return username ? username.slice(0, 32) : null;
+}
+
 export function createTetrisWebSocketServer(httpServer, {
   heartbeatMs = 30_000,
   reconnectGraceMs = 30_000,
   gameLoopMs = 25,
+  resolveUser = async () => null,
 } = {}) {
   const rooms = new Map();
   const clients = new WeakMap();
@@ -119,12 +130,14 @@ export function createTetrisWebSocketServer(httpServer, {
       }
       if (immediate) {
         room.guestToken = null;
+        room.guestName = null;
         return;
       }
       room.guestReconnectTimer = setTimeout(() => {
         const currentRoom = rooms.get(roomCode);
         if (!currentRoom || currentRoom.guest) return;
         currentRoom.guestToken = null;
+        currentRoom.guestName = null;
         currentRoom.guestReconnectTimer = null;
         send(currentRoom.host, { type: "peer_expired", playerId: 2 });
       }, reconnectGraceMs);
@@ -132,10 +145,11 @@ export function createTetrisWebSocketServer(httpServer, {
     }
   };
 
-  webSocketServer.on("connection", (socket) => {
+  webSocketServer.on("connection", (socket, _request, user) => {
     clients.set(socket, {
       roomCode: null,
       playerId: null,
+      username: getVerifiedUsername(user),
       alive: true,
       messageWindowStartedAt: Date.now(),
       messageCount: 0,
@@ -180,6 +194,8 @@ export function createTetrisWebSocketServer(httpServer, {
         rooms.set(roomCode, {
           host: socket,
           guest: null,
+          hostName: client.username,
+          guestName: null,
           hostToken: resumeToken,
           guestToken: null,
           hostReconnectTimer: null,
@@ -191,7 +207,14 @@ export function createTetrisWebSocketServer(httpServer, {
         });
         client.roomCode = roomCode;
         client.playerId = 1;
-        send(socket, { type: "room_created", roomCode, playerId: 1, gameMode, resumeToken });
+        send(socket, {
+          type: "room_created",
+          roomCode,
+          playerId: 1,
+          gameMode,
+          resumeToken,
+          playerNames: getPlayerNames(rooms.get(roomCode)),
+        });
         return;
       }
 
@@ -211,10 +234,24 @@ export function createTetrisWebSocketServer(httpServer, {
         const resumeToken = makeResumeToken();
         room.guest = socket;
         room.guestToken = resumeToken;
+        room.guestName = client.username;
         client.roomCode = roomCode;
         client.playerId = 2;
-        send(socket, { type: "room_joined", roomCode, playerId: 2, gameMode: room.gameMode, resumeToken });
-        send(room.host, { type: "peer_joined", playerId: 2, gameMode: room.gameMode });
+        const playerNames = getPlayerNames(room);
+        send(socket, {
+          type: "room_joined",
+          roomCode,
+          playerId: 2,
+          gameMode: room.gameMode,
+          resumeToken,
+          playerNames,
+        });
+        send(room.host, {
+          type: "peer_joined",
+          playerId: 2,
+          gameMode: room.gameMode,
+          playerNames,
+        });
         startRoomGame(room);
         return;
       }
@@ -252,8 +289,9 @@ export function createTetrisWebSocketServer(httpServer, {
           resumeToken: token,
           peerConnected: peer?.readyState === WebSocket.OPEN,
           state: room.lastState,
+          playerNames: getPlayerNames(room),
         });
-        send(peer, { type: "peer_rejoined", playerId });
+        send(peer, { type: "peer_rejoined", playerId, playerNames: getPlayerNames(room) });
         return;
       }
 
@@ -304,7 +342,7 @@ export function createTetrisWebSocketServer(httpServer, {
     socket.on("close", () => leaveRoom(socket));
   });
 
-  const onUpgrade = (request, socket, head) => {
+  const onUpgrade = async (request, socket, head) => {
     let pathname;
     try {
       pathname = new URL(request.url, "http://localhost").pathname;
@@ -316,8 +354,14 @@ export function createTetrisWebSocketServer(httpServer, {
       socket.destroy();
       return;
     }
+    let user = null;
+    try {
+      user = await resolveUser(request);
+    } catch {
+      user = null;
+    }
     webSocketServer.handleUpgrade(request, socket, head, (webSocket) => {
-      webSocketServer.emit("connection", webSocket, request);
+      webSocketServer.emit("connection", webSocket, request, user);
     });
   };
   httpServer.on("upgrade", onUpgrade);

@@ -9,9 +9,11 @@ let multiplayer;
 let socketUrl;
 const openSockets = new Set();
 
-function connect() {
+function connect(username = null) {
   return new Promise((resolve, reject) => {
-    const socket = new WebSocket(socketUrl);
+    const socket = new WebSocket(socketUrl, username ? {
+      headers: { "x-test-username": username },
+    } : undefined);
     openSockets.add(socket);
     socket.once("open", () => resolve(socket));
     socket.once("error", reject);
@@ -64,10 +66,33 @@ before(async () => {
     heartbeatMs: 60_000,
     reconnectGraceMs: 1_000,
     gameLoopMs: 10_000,
+    resolveUser: async (request) => {
+      const username = request.headers["x-test-username"];
+      return typeof username === "string" ? { username } : null;
+    },
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   socketUrl = `ws://127.0.0.1:${address.port}/ws/tetris`;
+});
+
+test("shares authenticated usernames with both players", async () => {
+  const host = await connect("HostFrog");
+  send(host, { type: "create", gameMode: "duel" });
+  const created = await nextMessage(host, "room_created");
+  assert.deepEqual(created.playerNames, { 1: "HostFrog", 2: null });
+
+  const peerJoined = nextMessage(host, "peer_joined");
+  const guest = await connect("GuestFrog");
+  send(guest, { type: "join", roomCode: created.roomCode });
+  const joined = await nextMessage(guest, "room_joined");
+  const hostNotification = await peerJoined;
+  const expectedNames = { 1: "HostFrog", 2: "GuestFrog" };
+  assert.deepEqual(joined.playerNames, expectedNames);
+  assert.deepEqual(hostNotification.playerNames, expectedNames);
+
+  host.close();
+  guest.close();
 });
 
 after(async () => {
