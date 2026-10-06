@@ -101,5 +101,7 @@ export type TetrisGameController = {
   sendCommand: (command: GameCommand) => void;
   renderedBoards: Record<PlayerId, Map<string, RenderedCell>>;
   returnToMenu: () => void;
+  soundEnabled: boolean;
+  toggleSound: () => void;
 };
 import type { Dispatch, SetStateAction } from 'react';

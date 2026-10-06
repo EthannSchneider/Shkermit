@@ -43,6 +43,7 @@ import type {
   SavedMultiplayerSession,
 } from '../../components/games/tetris/types';
 import { useBestScore } from '../../hooks/use-best-score';
+import { useTetrisAudio } from '../../components/games/tetris/use-tetris-audio';
 
 const getMessagePlayerNames = (value: unknown): Record<PlayerId, string | null> => {
   const names = value && typeof value === 'object'
@@ -74,6 +75,7 @@ function useTetrisGame() {
   const multiplayerSessionRef = useRef<SavedMultiplayerSession | null>(getSavedMultiplayerSession());
   const intentionalCloseRef = useRef(false);
   const socketMessageHandlerRef = useRef<(message: Record<string, unknown>) => void>(() => undefined);
+  const { soundEnabled, toggleSound, playLockSound } = useTetrisAudio(game);
 
   const sendSocketMessage = useCallback((message: Record<string, unknown>) => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -277,6 +279,8 @@ function useTetrisGame() {
           : source.message,
     };
 
+    if (source.mode === 'solo') playLockSound(fullRows.length);
+
     if (source.mode === 'duel') {
       const attackRows = [0, 0, 1, 2, 4][fullRows.length] || Math.max(0, fullRows.length - 1);
       if (attackRows > 0) {
@@ -313,7 +317,7 @@ function useTetrisGame() {
     data.active = [...data.active, spawned];
     if (data.meter >= 100) data.message = 'FROG FLUSH READY';
     publish(data);
-  }, [drawDuelType, drawType, endGame, publish]);
+  }, [drawDuelType, drawType, endGame, playLockSound, publish]);
 
   const movePlayer = useCallback((player: PlayerId, action: Action) => {
     const source = gameRef.current;
@@ -805,6 +809,8 @@ function useTetrisGame() {
     sendCommand,
     renderedBoards,
     returnToMenu,
+    soundEnabled,
+    toggleSound,
   };
 }
 

@@ -30,6 +30,8 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
     sendCommand,
     renderedBoards,
     returnToMenu,
+    soundEnabled,
+    toggleSound,
   } = controller;
   const playerLabel = (player: PlayerId) => coop.playerNames[player] || `PLAYER ${player}`;
   const gameMessage = ([1, 2] as PlayerId[]).reduce(
@@ -57,7 +59,12 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
         <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(rgba(151,255,99,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(151,255,99,.05) 1px, transparent 1px)', backgroundSize: '34px 34px' }} />
         <img src={shkermitImage} alt="" className="pointer-events-none absolute -bottom-20 -right-24 w-110 opacity-15 grayscale" />
         <section className="relative mx-auto max-w-6xl">
-          <a href="/games" className="mb-10 inline-flex items-center gap-2 text-xs text-lime-200/60 transition hover:text-lime-200">← BACK TO THE ARCADE</a>
+          <div className="mb-10 flex items-center justify-between gap-4">
+            <a href="/games" className="inline-flex items-center gap-2 text-xs text-lime-200/60 transition hover:text-lime-200">← BACK TO THE ARCADE</a>
+            <button type="button" onClick={toggleSound} aria-pressed={soundEnabled} className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[9px] text-white/50 transition hover:bg-white/10 hover:text-white/75">
+              {soundEnabled ? '🔊 SOUND ON' : '🔇 SOUND OFF'}
+            </button>
+          </div>
           <div className="mb-12 max-w-3xl">
             <p className="mb-4 text-xs tracking-[0.35em] text-lime-300">SHKERMIT ARCADE / 03</p>
             <h1 className="text-5xl leading-[0.9] text-white sm:text-7xl">SHKERMIT<br /><span className="text-lime-300">STACKS</span></h1>
@@ -234,6 +241,9 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
             <h1 className="text-2xl text-lime-300 sm:text-4xl">SHKERMIT STACKS</h1>
           </div>
           <div className="flex items-center gap-2 text-[9px]">
+            <button type="button" onClick={toggleSound} aria-pressed={soundEnabled} aria-label={soundEnabled ? 'Mute Tetris sound' : 'Enable Tetris sound'} className="mr-2 rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[9px] text-white/50 transition hover:bg-white/10 hover:text-white/75">
+              {soundEnabled ? '🔊' : '🔇'}
+            </button>
             <span className={`h-2 w-2 rounded-full ${game.status === 'playing' ? 'animate-pulse bg-lime-300' : 'bg-yellow-300'}`} />
             <span className="text-white/45">
               {game.mode === 'coop'
