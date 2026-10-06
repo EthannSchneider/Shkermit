@@ -285,7 +285,11 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
             <p className="mb-2 text-center text-[9px]" style={{ color: PLAYER_COLORS[game.mode !== 'solo' ? coop.playerId || 1 : 1] }}>
               {game.mode !== 'solo' ? `PLAYER ${coop.playerId} TOUCH CONTROLS` : 'TOUCH CONTROLS'}
             </p>
-            <ControlPad player={game.mode !== 'solo' ? coop.playerId || 1 : 1} onAction={sendAction} />
+            <ControlPad
+              player={game.mode !== 'solo' ? coop.playerId || 1 : 1}
+              bindings={keyBindings}
+              onAction={sendAction}
+            />
           </div>
         </div>
       </div>

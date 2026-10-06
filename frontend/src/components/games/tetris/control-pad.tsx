@@ -1,19 +1,34 @@
-import type { Action, PlayerId } from './types';
+import type { Action, KeyboardBindings, PlayerId } from './types';
 
 type ControlPadProps = {
   player: PlayerId;
+  bindings: KeyboardBindings;
   onAction: (player: PlayerId, action: Action) => void;
 };
 
-export function ControlPad({ player, onAction }: ControlPadProps) {
-  const buttonClass = 'select-none rounded-lg border border-white/10 bg-white/8 px-4 py-3 text-lg text-white active:scale-95 active:bg-white/20';
+const controls: { action: Action; symbol: string; label: string }[] = [
+  { action: 'left', symbol: '←', label: 'move left' },
+  { action: 'rotate', symbol: '↻', label: 'rotate' },
+  { action: 'down', symbol: '↓', label: 'move down' },
+  { action: 'right', symbol: '→', label: 'move right' },
+  { action: 'drop', symbol: 'DROP', label: 'hard drop' },
+];
+
+export function ControlPad({ player, bindings, onAction }: ControlPadProps) {
+  const buttonClass = 'flex min-w-12 select-none flex-col items-center gap-1 rounded-lg border border-white/10 bg-white/8 px-3 py-2 text-white active:scale-95 active:bg-white/20';
   return (
     <div className="flex items-center justify-center gap-2" aria-label={`Player ${player} touch controls`}>
-      <button className={buttonClass} onPointerDown={() => onAction(player, 'left')} aria-label={`Player ${player} move left`}>←</button>
-      <button className={buttonClass} onPointerDown={() => onAction(player, 'rotate')} aria-label={`Player ${player} rotate`}>↻</button>
-      <button className={buttonClass} onPointerDown={() => onAction(player, 'down')} aria-label={`Player ${player} move down`}>↓</button>
-      <button className={buttonClass} onPointerDown={() => onAction(player, 'right')} aria-label={`Player ${player} move right`}>→</button>
-      <button className={`${buttonClass} text-xs`} onPointerDown={() => onAction(player, 'drop')} aria-label={`Player ${player} hard drop`}>DROP</button>
+      {controls.map(({ action, symbol, label }) => (
+        <button
+          key={action}
+          className={buttonClass}
+          onPointerDown={() => onAction(player, action)}
+          aria-label={`Player ${player} ${label}, keyboard key ${bindings[action].label}`}
+        >
+          <span className={action === 'drop' ? 'text-[10px]' : 'text-lg'} aria-hidden="true">{symbol}</span>
+          <span className="max-w-14 truncate text-[8px] text-lime-200/70">{bindings[action].label}</span>
+        </button>
+      ))}
     </div>
   );
 }
