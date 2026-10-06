@@ -80,6 +80,7 @@ export type RenderedCell = {
 
 export type TetrisGameController = {
   game: GameState;
+  bestScores: Record<GameMode, number>;
   coop: CoopState;
   joinCode: string;
   setJoinCode: Dispatch<SetStateAction<string>>;

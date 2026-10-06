@@ -8,7 +8,9 @@ import { createDatabase } from "./database/index.js";
 import { createSessionModel } from "./models/session.model.js";
 import { createEmailVerificationModel } from "./models/email-verification.model.js";
 import { createUserModel } from "./models/user.model.js";
+import { createGameScoreModel } from "./models/game-score.model.js";
 import { createMailer } from "./services/mailer.service.js";
+import { createGameScoreService } from "./services/game-score.service.js";
 import { createSessionService } from "./services/session.service.js";
 import { createTetrisWebSocketServer } from "./websocket/tetris-websocket.js";
 
@@ -66,6 +68,7 @@ const db = createDatabase(databaseUrl);
 const sessionModel = createSessionModel(db);
 const userModel = createUserModel(db, { adminEmails });
 const sessionService = createSessionService({ sessionModel, sessionTtlMs });
+const gameScoreService = createGameScoreService({ gameScoreModel: createGameScoreModel(db) });
 await sessionModel.deleteExpired(new Date());
 await createEmailVerificationModel(db).deleteExpired(new Date());
 
@@ -89,6 +92,9 @@ const tetrisWebSockets = createTetrisWebSocketServer(server, {
     const token = readCookie(request, SESSION_COOKIE_NAME);
     const session = await sessionService.findValid(token);
     return session ? userModel.findById(session.userId) : null;
+  },
+  saveScore(userId, mode, score) {
+    return gameScoreService.save(userId, "tetris", mode, score, { trusted: true });
   },
 });
 

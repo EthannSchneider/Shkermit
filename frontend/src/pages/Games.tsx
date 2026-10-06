@@ -53,6 +53,13 @@ export default function Games() {
           <p className="text-xl text-gray-300">
             Welcome to our collection of Shkermit-inspired games! Choose a game below to start playing.
           </p>
+          <button
+            type="button"
+            onClick={() => navigate('/games/stats')}
+            className="mt-6 rounded-xl border border-yellow-300/25 bg-yellow-300/10 px-6 py-3 text-sm font-bold text-yellow-200 transition hover:-translate-y-0.5 hover:bg-yellow-300/20"
+          >
+            🏆 VIEW BEST SCORE BOARDS
+          </button>
         </div>
 
         <div className="mt-16 text-center">

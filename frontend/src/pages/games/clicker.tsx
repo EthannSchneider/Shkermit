@@ -5,8 +5,12 @@ import Shop, { type Upgrade } from '../../components/games/clicker/shop';
 import WeaponsShop, { type Weapon } from '../../components/games/clicker/weapons-shop';
 import Buttons from '../../components/games/clicker/buttons';
 import Victory, { VICTORY_COST } from '../../components/games/clicker/victory';
+import { useAuth } from '../../context/auth-context';
+import { useBestScore } from '../../hooks/use-best-score';
 
 export default function ShkermitClicker() {
+  const { user } = useAuth();
+  const { bestScore, recordScore } = useBestScore('clicker', 'classic');
   const [score, setScore] = useState(0);
   const [shkermitesPerClick, setShkermitesPerClick] = useState(1);
   const [clicksPerSecond, setClicksPerSecond] = useState(0);
@@ -111,6 +115,10 @@ export default function ShkermitClicker() {
     return () => clearInterval(interval);
   }, [clicksPerSecond]);
 
+  useEffect(() => {
+    recordScore(score);
+  }, [recordScore, score]);
+
    useEffect(() => {
      const gameData = JSON.stringify({
        score,
@@ -129,6 +137,11 @@ export default function ShkermitClicker() {
         <h1 className="text-4xl font-bold text-center mb-8 text-transparent bg-clip-text bg-linear-to-b from-purple-400 to-pink-500">
           ⭐ Shkermit Clicker ⭐
         </h1>
+        {user && (
+          <p className="mb-6 text-center text-sm text-yellow-300">
+            🏆 {user.username}'s best: {bestScore.toLocaleString()}
+          </p>
+        )}
 
         <div className="flex flex-col lg:flex-row gap-8 justify-center lg:items-start items-center-safe">
           <div className="flex flex-col items-center gap-6">

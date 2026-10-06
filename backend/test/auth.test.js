@@ -62,6 +62,48 @@ test("reports API health", async () => {
   assert.deepEqual(response.body, { status: "ok" });
 });
 
+test("stores an authenticated best score independently for every game mode", async () => {
+  const agent = request.agent(app);
+  await agent.post("/api/auth/register").send({
+    username: "ScoreFrog",
+    email: "scores@example.com",
+    password: "StrongPass123",
+  });
+  await agent.post("/api/auth/verify-email").send({
+    token: latestTokenFor("scores@example.com"),
+  });
+
+  const initial = await agent.get("/api/scores/tetris/solo");
+  assert.equal(initial.status, 200);
+  assert.deepEqual(initial.body, { game: "tetris", mode: "solo", score: 0 });
+
+  assert.equal((await agent.put("/api/scores/tetris/solo").send({ score: 420 })).status, 200);
+  const lowerScore = await agent.put("/api/scores/tetris/solo").send({ score: 12 });
+  assert.equal(lowerScore.body.score, 420);
+
+  const otherMode = await agent.put("/api/scores/snake/classic").send({ score: 150 });
+  assert.equal(otherMode.body.score, 150);
+  assert.equal((await agent.get("/api/scores/tetris/solo")).body.score, 420);
+  assert.equal((await agent.get("/api/scores/snake/classic")).body.score, 150);
+  assert.equal((await agent.put("/api/scores/tetris/duel").send({ score: 999 })).status, 403);
+
+  const leaderboards = await request(app).get("/api/scores/leaderboard");
+  assert.equal(leaderboards.status, 200);
+  assert.equal(leaderboards.body.leaderboards.length, 5);
+  const soloBoard = leaderboards.body.leaderboards.find(
+    (board) => board.game === "tetris" && board.mode === "solo",
+  );
+  assert.deepEqual(soloBoard.entries[0], {
+    rank: 1,
+    username: "ScoreFrog",
+    score: 420,
+  });
+
+  assert.equal((await agent.put("/api/scores/snake/classic").send({ score: -1 })).status, 400);
+  assert.equal((await agent.get("/api/scores/unknown/classic")).status, 400);
+  assert.equal((await request(app).get("/api/scores/tetris/solo")).status, 401);
+});
+
 test("registers a user and requires email confirmation before creating a session", async () => {
   const agent = request.agent(app);
   const registration = await agent.post("/api/auth/register").send({

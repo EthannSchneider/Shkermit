@@ -15,6 +15,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
   const [isAntoineLoupOpen, setIsAntoineLoupOpen] = useState(false);
   const {
     game,
+    bestScores,
     coop,
     joinCode,
     setJoinCode,
@@ -245,15 +246,16 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
         <div className="grid items-start gap-5 xl:grid-cols-[220px_minmax(320px,660px)_250px] xl:justify-center">
           <aside className="order-2 grid grid-cols-3 gap-3 xl:order-1 xl:grid-cols-1">
             <div className="rounded-xl border border-white/8 bg-white/3.5 p-4">
-              <p className="text-[9px] tracking-[0.2em] text-white/35">SCORE</p>
+              <p className="text-[9px] tracking-[0.2em] text-white/35">SCORE / BEST</p>
               <p className="mt-2 text-xl text-white sm:text-2xl">{(game.mode === 'duel' ? game.playerStats[coop.playerId || 1].score : game.score).toLocaleString()}</p>
+              <p className="mt-1 text-[9px] text-yellow-200/65">🏆 {bestScores[game.mode].toLocaleString()}</p>
             </div>
             <div className="rounded-xl border border-white/8 bg-white/3.5 p-4">
-              <p className="text-[9px] tracking-[0.2em] text-white/35">{game.mode === 'duel' ? 'YOUR / RIVAL LINES' : 'LINES / BEST'}</p>
+              <p className="text-[9px] tracking-[0.2em] text-white/35">{game.mode === 'duel' ? 'YOUR / RIVAL LINES' : 'LINES'}</p>
               <p className="mt-2 text-sm text-lime-200">
                 {game.mode === 'duel'
                   ? <>{game.playerStats[coop.playerId || 1].lines} <span className="text-white/20">/</span> {game.playerStats[(coop.playerId || 1) === 1 ? 2 : 1].lines}</>
-                  : <>{game.lines} <span className="text-white/20">/</span> {game.best.toLocaleString()}</>}
+                  : game.lines}
               </p>
             </div>
             <div className="rounded-xl border border-white/8 bg-white/3.5 p-4">

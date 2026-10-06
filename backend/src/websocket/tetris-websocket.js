@@ -68,6 +68,7 @@ export function createTetrisWebSocketServer(httpServer, {
   reconnectGraceMs = 30_000,
   gameLoopMs = 25,
   resolveUser = async () => null,
+  saveScore = async () => undefined,
 } = {}) {
   const rooms = new Map();
   const clients = new WeakMap();
@@ -81,6 +82,20 @@ export function createTetrisWebSocketServer(httpServer, {
   const broadcastGame = (room) => {
     if (!room.game) return;
     room.lastState = room.game.state;
+    if (room.lastState.status !== "gameover") {
+      room.scoreSaved = false;
+    } else if (!room.scoreSaved) {
+      room.scoreSaved = true;
+      const playerScores = room.gameMode === "duel"
+        ? { 1: room.lastState.playerStats[1].score, 2: room.lastState.playerStats[2].score }
+        : { 1: room.lastState.score, 2: room.lastState.score };
+      if (room.hostUserId) {
+        void saveScore(room.hostUserId, room.gameMode, playerScores[1]).catch(() => undefined);
+      }
+      if (room.guestUserId) {
+        void saveScore(room.guestUserId, room.gameMode, playerScores[2]).catch(() => undefined);
+      }
+    }
     send(room.host, { type: "game_state", state: room.lastState });
     send(room.guest, { type: "game_state", state: room.lastState });
   };
@@ -131,6 +146,7 @@ export function createTetrisWebSocketServer(httpServer, {
       if (immediate) {
         room.guestToken = null;
         room.guestName = null;
+        room.guestUserId = null;
         return;
       }
       room.guestReconnectTimer = setTimeout(() => {
@@ -138,6 +154,7 @@ export function createTetrisWebSocketServer(httpServer, {
         if (!currentRoom || currentRoom.guest) return;
         currentRoom.guestToken = null;
         currentRoom.guestName = null;
+        currentRoom.guestUserId = null;
         currentRoom.guestReconnectTimer = null;
         send(currentRoom.host, { type: "peer_expired", playerId: 2 });
       }, reconnectGraceMs);
@@ -150,6 +167,7 @@ export function createTetrisWebSocketServer(httpServer, {
       roomCode: null,
       playerId: null,
       username: getVerifiedUsername(user),
+      userId: Number.isInteger(user?.id) ? user.id : null,
       alive: true,
       messageWindowStartedAt: Date.now(),
       messageCount: 0,
@@ -196,6 +214,8 @@ export function createTetrisWebSocketServer(httpServer, {
           guest: null,
           hostName: client.username,
           guestName: null,
+          hostUserId: client.userId,
+          guestUserId: null,
           hostToken: resumeToken,
           guestToken: null,
           hostReconnectTimer: null,
@@ -204,6 +224,7 @@ export function createTetrisWebSocketServer(httpServer, {
           game: null,
           nextDropAt: null,
           lastState: null,
+          scoreSaved: false,
         });
         client.roomCode = roomCode;
         client.playerId = 1;
@@ -235,6 +256,7 @@ export function createTetrisWebSocketServer(httpServer, {
         room.guest = socket;
         room.guestToken = resumeToken;
         room.guestName = client.username;
+        room.guestUserId = client.userId;
         client.roomCode = roomCode;
         client.playerId = 2;
         const playerNames = getPlayerNames(room);

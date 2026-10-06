@@ -20,6 +20,24 @@ export type Picture = {
   updatedAt: string;
 };
 
+export type GameScore = {
+  game: string;
+  mode: string;
+  score: number;
+};
+
+export type LeaderboardEntry = {
+  rank: number;
+  username: string;
+  score: number;
+};
+
+export type GameLeaderboard = {
+  game: string;
+  mode: string;
+  entries: LeaderboardEntry[];
+};
+
 type UserResponse = { user: User };
 
 export class ApiError extends Error {
@@ -110,4 +128,13 @@ export const api = {
     }),
   deletePicture: (id: number) =>
     request<void>(`/api/pictures/${id}`, { method: "DELETE" }),
+  getBestScore: (game: string, mode: string) =>
+    request<GameScore>(`/api/scores/${encodeURIComponent(game)}/${encodeURIComponent(mode)}`),
+  saveBestScore: (game: string, mode: string, score: number) =>
+    request<GameScore>(`/api/scores/${encodeURIComponent(game)}/${encodeURIComponent(mode)}`, {
+      method: "PUT",
+      body: JSON.stringify({ score }),
+    }),
+  getLeaderboards: () =>
+    request<{ leaderboards: GameLeaderboard[] }>("/api/scores/leaderboard"),
 };

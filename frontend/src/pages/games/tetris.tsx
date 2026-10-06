@@ -42,6 +42,7 @@ import type {
   PlayerId,
   SavedMultiplayerSession,
 } from '../../components/games/tetris/types';
+import { useBestScore } from '../../hooks/use-best-score';
 
 const getMessagePlayerNames = (value: unknown): Record<PlayerId, string | null> => {
   const names = value && typeof value === 'object'
@@ -58,6 +59,9 @@ const getMessagePlayerNames = (value: unknown): Record<PlayerId, string | null> 
 function useTetrisGame() {
   const [game, setGame] = useState<GameState>(initialGame);
   const [coop, setCoop] = useState<CoopState>(initialCoop);
+  const soloBest = useBestScore('tetris', 'solo', getSavedBest('solo'));
+  const coopBest = useBestScore('tetris', 'coop', getSavedBest('coop'), false);
+  const duelBest = useBestScore('tetris', 'duel', getSavedBest('duel'), false);
   const [joinCode, setJoinCode] = useState('');
   const [keyBindings, setKeyBindings] = useState<KeyboardBindings>(getSavedBindings);
   const [bindingAction, setBindingAction] = useState<KeyboardAction | null>(null);
@@ -733,6 +737,16 @@ function useTetrisGame() {
 
   useEffect(() => () => closeCoopSocket(), [closeCoopSocket]);
 
+  useEffect(() => {
+    if (game.status !== 'gameover') return;
+    const score = game.mode === 'duel'
+      ? game.playerStats[coop.playerId || 1].score
+      : game.score;
+    if (game.mode === 'solo') soloBest.recordScore(score);
+    if (game.mode === 'coop') coopBest.recordScore(score);
+    if (game.mode === 'duel') duelBest.recordScore(score);
+  }, [coop.playerId, coopBest, duelBest, game, soloBest]);
+
   const renderedBoards = useMemo(() => {
     const result = {} as Record<PlayerId, Map<string, { cell: Cell; ghost?: boolean; active?: boolean }>>;
     const players: PlayerId[] = game.mode === 'duel' ? [1, 2] : [1];
@@ -772,6 +786,11 @@ function useTetrisGame() {
 
   return {
     game,
+    bestScores: {
+      solo: soloBest.bestScore,
+      coop: coopBest.bestScore,
+      duel: duelBest.bestScore,
+    },
     coop,
     joinCode,
     setJoinCode,

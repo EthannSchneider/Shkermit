@@ -1,11 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import shkermitImage from '../../assets/img/1 ShkermitRTX.png';
+import { useAuth } from '../../context/auth-context';
+import { useBestScore } from '../../hooks/use-best-score';
+
+const getSavedHighScore = () => {
+  const value = Number.parseInt(localStorage.getItem('snakeHighScore') ?? '0', 10);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+};
 
 export default function SnakeGame() {
+  const { user } = useAuth();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameStarted, setGameStarted] = useState(false);
   const [score, setScore] = useState(0);
-  const [highScore, setHighScore] = useState(0);
+  const [highScore, setHighScore] = useState(getSavedHighScore);
+  const { bestScore, recordScore } = useBestScore('snake', 'classic', highScore);
   const [gameOver, setGameOver] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
 
@@ -19,16 +28,10 @@ export default function SnakeGame() {
   const [direction, setDirection] = useState({ x: 0, y: 0 });
   const [gameStatus, setGameStatus] = useState<'playing' | 'paused' | 'gameover'>('playing');
   const initialLoadRef = useRef(true);
-  const highScoreRef = useRef(0);
+  const highScoreRef = useRef(highScore);
   const imageRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
-    const savedHighScore = localStorage.getItem('snakeHighScore');
-    if (savedHighScore) {
-      highScoreRef.current = parseInt(savedHighScore, 10);
-      setHighScore(highScoreRef.current);
-    }
-    
     const img = new Image();
     img.src = shkermitImage;
     img.onload = () => {
@@ -206,6 +209,7 @@ export default function SnakeGame() {
           setHighScore(highScoreRef.current);
           localStorage.setItem('snakeHighScore', highScoreRef.current.toString());
         }
+        recordScore(score);
         return;
       }
 
@@ -219,6 +223,7 @@ export default function SnakeGame() {
           setHighScore(highScoreRef.current);
           localStorage.setItem('snakeHighScore', highScoreRef.current.toString());
         }
+        recordScore(score);
         return;
       }
 
@@ -235,7 +240,7 @@ export default function SnakeGame() {
     }, 100);
 
     return () => clearInterval(interval);
-  }, [gameStarted, snake, direction, food, score, gameStatus, isPaused, TILE_COUNT, generateFood]);
+  }, [gameStarted, snake, direction, food, score, gameStatus, isPaused, TILE_COUNT, generateFood, recordScore]);
 
   useEffect(() => {
     draw();
@@ -267,7 +272,7 @@ export default function SnakeGame() {
                 <p className="text-2xl font-bold text-yellow-400 mb-2">Game Over!</p>
                 {gameOver && (
                   <p className="text-xl text-white">
-                    Score: {score} | High Score: {highScore}
+                    Score: {score} | High Score: {Math.max(highScore, bestScore)}
                   </p>
                 )}
                 <button
@@ -285,7 +290,8 @@ export default function SnakeGame() {
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold text-green-300 mb-4">📊 Score</h2>
                 <div className="text-5xl font-bold text-white mb-2">{score}</div>
-                <div className="text-xl text-yellow-400">🏆 High Score: {highScore}</div>
+                <div className="text-xl text-yellow-400">🏆 High Score: {Math.max(highScore, bestScore)}</div>
+                {user && <div className="mt-1 text-xs text-green-200">Saved for {user.username}</div>}
               </div>
 
               <div className="space-y-4 text-gray-300">

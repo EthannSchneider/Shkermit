@@ -4,6 +4,7 @@ import Header from "./components/header";
 import Footer from "./components/footer";
 import Picture from "./pages/Picture";
 import Games from "./pages/Games";
+import GameStats from "./pages/GameStats";
 import ShkermitClicker from "./pages/games/clicker";
 import SnakeGame from "./pages/games/snake";
 import TetrisGame from "./pages/games/tetris";
@@ -29,6 +30,7 @@ function App() {
           <Route path="/admin/pictures" element={<AdminPictures />} />
           <Route path="/games">
             <Route index element={<Games />} />
+            <Route path="stats" element={<GameStats />} />
             <Route path="clicker" element={<ShkermitClicker />} />
             <Route path="snake" element={<SnakeGame />} />
             <Route path="tetris" element={<TetrisGame />} />

@@ -17,9 +17,25 @@ model User {
   createdAt              DateTime                @default(now()) @map("created_at")
   updatedAt              DateTime                @updatedAt @map("updated_at")
   sessions               Session[]
+  gameScores             GameScore[]
   emailVerificationToken EmailVerificationToken?
 
   @@map("users")
+}
+
+model GameScore {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  game      String
+  mode      String
+  score     Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, game, mode])
+  @@index([game, mode, score])
+  @@map("game_scores")
 }
 
 model EmailVerificationToken {
