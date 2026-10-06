@@ -1,11 +1,27 @@
 import { randomBytes, randomInt } from "node:crypto";
 import { WebSocket, WebSocketServer } from "ws";
+import {
+  commandTetrisGame,
+  createTetrisGame,
+  getTetrisDropDelay,
+  moveTetrisPlayer,
+  pauseTetrisGame,
+  tickTetrisGame,
+} from "../services/tetris-game.service.js";
 
 const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const ROOM_CODE_LENGTH = 5;
 const MAX_MESSAGES_PER_SECOND = 120;
 const VALID_ACTIONS = new Set(["left", "right", "rotate", "down", "drop"]);
 const VALID_COMMANDS = new Set(["toggle_pause", "restart", "frog_flush"]);
+const ACTION_COOLDOWNS_MS = {
+  left: 20,
+  right: 20,
+  rotate: 75,
+  down: 30,
+  drop: 100,
+};
+const COMMAND_COOLDOWN_MS = 250;
 
 function makeRoomCode(rooms) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -30,32 +46,17 @@ function makeResumeToken() {
   return randomBytes(24).toString("base64url");
 }
 
-function isMultiplayerGameState(value) {
-  return Boolean(
-    value
-    && typeof value === "object"
-    && (value.mode === "coop" || value.mode === "duel")
-    && value.cols === (value.mode === "duel" ? 10 : 14)
-    && Array.isArray(value.board)
-    && value.board.length === 20
-    && value.board.every((row) => Array.isArray(row) && row.length === value.cols)
-    && (value.mode !== "duel"
-      || (value.duelBoards
-        && [value.duelBoards[1], value.duelBoards[2]].every((board) => (
-          Array.isArray(board)
-          && board.length === 20
-          && board.every((row) => Array.isArray(row) && row.length === 10)
-        ))))
-    && Array.isArray(value.active)
-    && typeof value.status === "string"
-    && Number.isFinite(value.score)
-    && Number.isFinite(value.lines),
-  );
+function isCoolingDown(client, key, cooldownMs, now) {
+  const lastUsedAt = client.lastInputAt.get(key) || 0;
+  if (now - lastUsedAt < cooldownMs) return true;
+  client.lastInputAt.set(key, now);
+  return false;
 }
 
 export function createTetrisWebSocketServer(httpServer, {
   heartbeatMs = 30_000,
   reconnectGraceMs = 30_000,
+  gameLoopMs = 25,
 } = {}) {
   const rooms = new Map();
   const clients = new WeakMap();
@@ -64,6 +65,19 @@ export function createTetrisWebSocketServer(httpServer, {
   const clearRoomTimers = (room) => {
     if (room.hostReconnectTimer) clearTimeout(room.hostReconnectTimer);
     if (room.guestReconnectTimer) clearTimeout(room.guestReconnectTimer);
+  };
+
+  const broadcastGame = (room) => {
+    if (!room.game) return;
+    room.lastState = room.game.state;
+    send(room.host, { type: "game_state", state: room.lastState });
+    send(room.guest, { type: "game_state", state: room.lastState });
+  };
+
+  const startRoomGame = (room) => {
+    room.game = createTetrisGame(room.gameMode);
+    room.nextDropAt = Date.now() + getTetrisDropDelay(room.game);
+    broadcastGame(room);
   };
 
   const deleteRoom = (roomCode, reason) => {
@@ -87,6 +101,7 @@ export function createTetrisWebSocketServer(httpServer, {
       if (room.host !== socket) return;
       room.host = null;
       send(room.guest, { type: "peer_left", playerId: 1, reconnecting: !immediate });
+      if (pauseTetrisGame(room.game, "Host disconnected — board preserved")) broadcastGame(room);
       if (immediate) {
         deleteRoom(roomCode, "The host left the room.");
         return;
@@ -98,6 +113,10 @@ export function createTetrisWebSocketServer(httpServer, {
     } else if (room.guest === socket) {
       room.guest = null;
       send(room.host, { type: "peer_left", playerId: 2, reconnecting: !immediate });
+      const peerName = room.gameMode === "duel" ? "Rival" : "Partner";
+      if (pauseTetrisGame(room.game, `${peerName} disconnected — board preserved`)) {
+        broadcastGame(room);
+      }
       if (immediate) {
         room.guestToken = null;
         return;
@@ -120,6 +139,7 @@ export function createTetrisWebSocketServer(httpServer, {
       alive: true,
       messageWindowStartedAt: Date.now(),
       messageCount: 0,
+      lastInputAt: new Map(),
     });
 
     socket.on("pong", () => {
@@ -165,6 +185,8 @@ export function createTetrisWebSocketServer(httpServer, {
           hostReconnectTimer: null,
           guestReconnectTimer: null,
           gameMode,
+          game: null,
+          nextDropAt: null,
           lastState: null,
         });
         client.roomCode = roomCode;
@@ -193,6 +215,7 @@ export function createTetrisWebSocketServer(httpServer, {
         client.playerId = 2;
         send(socket, { type: "room_joined", roomCode, playerId: 2, gameMode: room.gameMode, resumeToken });
         send(room.host, { type: "peer_joined", playerId: 2, gameMode: room.gameMode });
+        startRoomGame(room);
         return;
       }
 
@@ -244,32 +267,35 @@ export function createTetrisWebSocketServer(httpServer, {
       const room = rooms.get(client.roomCode);
       if (!room) return;
 
-      if (message.type === "state"
-        && client.playerId === 1
-        && message.state?.mode === room.gameMode
-        && isMultiplayerGameState(message.state)) {
-        room.lastState = message.state;
-        send(room.guest, { type: "game_state", state: message.state });
+      if (message.type === "state") {
+        send(socket, {
+          type: "error",
+          message: "Client-provided game states are not accepted.",
+        });
         return;
       }
 
       if (!room.guest || room.guest.readyState !== WebSocket.OPEN || !room.host || room.host.readyState !== WebSocket.OPEN) return;
 
       if (message.type === "action" && VALID_ACTIONS.has(message.action)) {
-        send(room.host, {
-          type: "player_action",
-          playerId: client.playerId,
-          action: message.action,
-        });
+        if (isCoolingDown(
+          client,
+          `action:${message.action}`,
+          ACTION_COOLDOWNS_MS[message.action],
+          now,
+        )) return;
+        if (moveTetrisPlayer(room.game, client.playerId, message.action)) broadcastGame(room);
         return;
       }
 
       if (message.type === "command" && VALID_COMMANDS.has(message.command)) {
-        send(room.host, {
-          type: "game_command",
-          playerId: client.playerId,
-          command: message.command,
-        });
+        if (isCoolingDown(client, `command:${message.command}`, COMMAND_COOLDOWN_MS, now)) return;
+        if (commandTetrisGame(room.game, message.command)) {
+          if (room.game.state.status === "playing") {
+            room.nextDropAt = now + getTetrisDropDelay(room.game);
+          }
+          broadcastGame(room);
+        }
         return;
       }
 
@@ -309,9 +335,24 @@ export function createTetrisWebSocketServer(httpServer, {
   }, heartbeatMs);
   heartbeat.unref();
 
+  const gameLoop = setInterval(() => {
+    const now = Date.now();
+    rooms.forEach((room) => {
+      if (!room.game
+        || room.game.state.status !== "playing"
+        || room.host?.readyState !== WebSocket.OPEN
+        || room.guest?.readyState !== WebSocket.OPEN
+        || now < room.nextDropAt) return;
+      if (tickTetrisGame(room.game)) broadcastGame(room);
+      room.nextDropAt = now + getTetrisDropDelay(room.game);
+    });
+  }, gameLoopMs);
+  gameLoop.unref();
+
   return {
     close() {
       clearInterval(heartbeat);
+      clearInterval(gameLoop);
       httpServer.off("upgrade", onUpgrade);
       webSocketServer.clients.forEach((socket) => socket.terminate());
       webSocketServer.close();

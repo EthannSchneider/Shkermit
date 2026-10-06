@@ -40,9 +40,31 @@ function send(socket, message) {
   socket.send(JSON.stringify(message));
 }
 
+async function createJoinedRoom(gameMode = "coop") {
+  const host = await connect();
+  send(host, { type: "create", gameMode });
+  const created = await nextMessage(host, "room_created");
+  const peerJoined = nextMessage(host, "peer_joined");
+  const initialHostState = nextMessage(host, "game_state");
+
+  const guest = await connect();
+  const initialGuestState = nextMessage(guest, "game_state");
+  send(guest, { type: "join", roomCode: created.roomCode.toLowerCase() });
+  const joined = await nextMessage(guest, "room_joined");
+
+  await peerJoined;
+  const [hostSnapshot, guestSnapshot] = await Promise.all([initialHostState, initialGuestState]);
+  assert.deepEqual(hostSnapshot.state, guestSnapshot.state);
+  return { host, guest, created, joined, state: hostSnapshot.state };
+}
+
 before(async () => {
   server = createServer((_request, response) => response.end("ok"));
-  multiplayer = createTetrisWebSocketServer(server, { heartbeatMs: 60_000, reconnectGraceMs: 1_000 });
+  multiplayer = createTetrisWebSocketServer(server, {
+    heartbeatMs: 60_000,
+    reconnectGraceMs: 1_000,
+    gameLoopMs: 10_000,
+  });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   socketUrl = `ws://127.0.0.1:${address.port}/ws/tetris`;
@@ -54,130 +76,110 @@ after(async () => {
   await new Promise((resolve) => server.close(resolve));
 });
 
-test("creates a two-player co-op room and relays inputs through its host", async () => {
-  const host = await connect();
-  send(host, { type: "create" });
-  const created = await nextMessage(host, "room_created");
+test("creates a server-authoritative co-op game and applies each player's input", async () => {
+  const { host, guest, created, joined, state } = await createJoinedRoom();
   assert.match(created.roomCode, /^[A-HJ-NP-Z2-9]{5}$/);
   assert.equal(created.playerId, 1);
   assert.equal(created.gameMode, "coop");
   assert.equal(typeof created.resumeToken, "string");
-
-  const peerJoined = nextMessage(host, "peer_joined");
-  const guest = await connect();
-  send(guest, { type: "join", roomCode: created.roomCode.toLowerCase() });
-  const joined = await nextMessage(guest, "room_joined");
   assert.equal(joined.roomCode, created.roomCode);
   assert.equal(joined.playerId, 2);
   assert.equal(joined.gameMode, "coop");
   assert.equal(typeof joined.resumeToken, "string");
-  await peerJoined;
 
-  const relayedAction = nextMessage(host, "player_action");
+  assert.equal(state.mode, "coop");
+  assert.equal(state.status, "playing");
+  assert.equal(state.active.length, 2);
+  const playerTwoBefore = state.active.find((piece) => piece.player === 2);
+  const movedGuest = nextMessage(host, "game_state");
+  const movedGuestEcho = nextMessage(guest, "game_state");
   send(guest, { type: "action", action: "left" });
-  assert.deepEqual(await relayedAction, { type: "player_action", playerId: 2, action: "left" });
+  const afterGuestMove = (await movedGuest).state;
+  await movedGuestEcho;
+  assert.equal(
+    afterGuestMove.active.find((piece) => piece.player === 2).x,
+    playerTwoBefore.x - 1,
+  );
 
-  const relayedHostAction = nextMessage(host, "player_action");
+  const droppedHost = nextMessage(guest, "game_state");
   send(host, { type: "action", action: "drop" });
-  assert.deepEqual(await relayedHostAction, { type: "player_action", playerId: 1, action: "drop" });
-
-  const relayedCommand = nextMessage(host, "game_command");
-  send(guest, { type: "command", command: "frog_flush" });
-  assert.equal((await relayedCommand).command, "frog_flush");
+  const afterHostDrop = (await droppedHost).state;
+  assert.equal(afterHostDrop.board.some((row) => row.some((cell) => cell?.owner === 1)), true);
 
   host.close();
   guest.close();
 });
 
-test("creates duel rooms and tells the joining player which mode to load", async () => {
-  const host = await connect();
-  send(host, { type: "create", gameMode: "duel" });
-  const created = await nextMessage(host, "room_created");
+test("creates isolated duel boards controlled by the backend", async () => {
+  const { host, guest, created, joined, state } = await createJoinedRoom("duel");
   assert.equal(created.gameMode, "duel");
-
-  const peerJoined = nextMessage(host, "peer_joined");
-  const guest = await connect();
-  send(guest, { type: "join", roomCode: created.roomCode });
-  const joined = await nextMessage(guest, "room_joined");
   assert.equal(joined.gameMode, "duel");
-  assert.equal((await peerJoined).gameMode, "duel");
+  assert.equal(state.mode, "duel");
+  assert.equal(state.duelBoards[1].length, 20);
+  assert.equal(state.duelBoards[2].length, 20);
+  const playerOneBefore = state.active.find((piece) => piece.player === 1);
+  const playerTwoBefore = state.active.find((piece) => piece.player === 2);
 
-  const emptyBoard = () => Array.from({ length: 20 }, () => Array(10).fill(null));
-  const state = {
-    mode: "duel",
-    cols: 10,
-    board: emptyBoard(),
-    duelBoards: { 1: emptyBoard(), 2: emptyBoard() },
-    active: [],
-    status: "playing",
-    score: 0,
-    lines: 0,
-  };
-  const snapshot = nextMessage(guest, "game_state");
-  send(host, { type: "state", state });
-  assert.deepEqual((await snapshot).state, state);
+  const moved = nextMessage(guest, "game_state");
+  send(host, { type: "action", action: "left" });
+  const nextState = (await moved).state;
+  assert.equal(nextState.active.find((piece) => piece.player === 1).x, playerOneBefore.x - 1);
+  assert.equal(nextState.active.find((piece) => piece.player === 2).x, playerTwoBefore.x);
 
   host.close();
   guest.close();
 });
 
-test("only accepts valid host snapshots and reports room disconnects", async () => {
-  const host = await connect();
-  send(host, { type: "create" });
-  const { roomCode } = await nextMessage(host, "room_created");
-  const peerJoined = nextMessage(host, "peer_joined");
-  const guest = await connect();
-  send(guest, { type: "join", roomCode });
-  await nextMessage(guest, "room_joined");
-  await peerJoined;
-
-  const state = {
-    mode: "coop",
-    cols: 14,
-    board: Array.from({ length: 20 }, () => Array(14).fill(null)),
-    active: [],
-    status: "playing",
-    score: 120,
-    lines: 1,
-  };
-  const snapshot = nextMessage(guest, "game_state");
-  send(host, { type: "state", state });
-  assert.deepEqual((await snapshot).state, state);
+test("rejects client-provided snapshots and pauses safely on disconnect", async () => {
+  const { host, guest } = await createJoinedRoom();
+  const rejected = nextMessage(host, "error");
+  send(host, {
+    type: "state",
+    state: { mode: "coop", score: 999_999, lines: 999, status: "gameover" },
+  });
+  assert.match((await rejected).message, /not accepted/i);
 
   const peerLeft = nextMessage(host, "peer_left");
+  const paused = nextMessage(host, "game_state");
   guest.close();
   await peerLeft;
+  assert.equal((await paused).state.status, "paused");
   host.close();
+});
+
+test("validates multiplayer commands against the server-owned game state", async () => {
+  const { host, guest } = await createJoinedRoom();
+  const pausedAtHost = nextMessage(host, "game_state");
+  const pausedAtGuest = nextMessage(guest, "game_state");
+  send(guest, { type: "command", command: "toggle_pause" });
+  assert.equal((await pausedAtHost).state.status, "paused");
+  await pausedAtGuest;
+
+  const restartedAtHost = nextMessage(host, "game_state");
+  const restartedAtGuest = nextMessage(guest, "game_state");
+  send(host, { type: "command", command: "restart" });
+  const restarted = (await restartedAtHost).state;
+  await restartedAtGuest;
+  assert.equal(restarted.status, "playing");
+  assert.equal(restarted.score, 0);
+  assert.equal(restarted.lines, 0);
+  assert.equal(restarted.active.length, 2);
+
+  host.close();
+  guest.close();
 });
 
 test("restores either player and the latest board after a refresh", async () => {
-  const host = await connect();
-  send(host, { type: "create", gameMode: "duel" });
-  const created = await nextMessage(host, "room_created");
-  const peerJoined = nextMessage(host, "peer_joined");
-  const guest = await connect();
-  send(guest, { type: "join", roomCode: created.roomCode });
-  const joined = await nextMessage(guest, "room_joined");
-  await peerJoined;
-
-  const emptyBoard = () => Array.from({ length: 20 }, () => Array(10).fill(null));
-  const state = {
-    mode: "duel",
-    cols: 10,
-    board: emptyBoard(),
-    duelBoards: { 1: emptyBoard(), 2: emptyBoard() },
-    active: [],
-    status: "playing",
-    score: 450,
-    lines: 3,
-  };
-  const initialSnapshot = nextMessage(guest, "game_state");
-  send(host, { type: "state", state });
-  await initialSnapshot;
+  const { host, guest, created, joined } = await createJoinedRoom("duel");
+  const authoritativeUpdate = nextMessage(guest, "game_state");
+  send(host, { type: "action", action: "drop" });
+  await authoritativeUpdate;
 
   const guestLeft = nextMessage(host, "peer_left");
+  const pausedSnapshot = nextMessage(host, "game_state");
   guest.close();
   assert.equal((await guestLeft).reconnecting, true);
+  const pausedState = (await pausedSnapshot).state;
 
   const guestRejoined = nextMessage(host, "peer_rejoined");
   const resumedGuest = await connect();
@@ -188,7 +190,7 @@ test("restores either player and the latest board after a refresh", async () => 
   });
   const guestResume = await nextMessage(resumedGuest, "room_resumed");
   assert.equal(guestResume.playerId, 2);
-  assert.deepEqual(guestResume.state, state);
+  assert.deepEqual(guestResume.state, pausedState);
   await guestRejoined;
 
   const hostLeft = nextMessage(resumedGuest, "peer_left");
@@ -204,7 +206,7 @@ test("restores either player and the latest board after a refresh", async () => 
   });
   const hostResume = await nextMessage(resumedHost, "room_resumed");
   assert.equal(hostResume.playerId, 1);
-  assert.deepEqual(hostResume.state, state);
+  assert.deepEqual(hostResume.state, pausedState);
   await hostRejoined;
 
   resumedHost.close();

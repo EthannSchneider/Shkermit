@@ -67,23 +67,17 @@ function useTetrisGame() {
     return false;
   }, []);
 
-  const publish = useCallback((nextGame: GameState, sync = true) => {
+  const publish = useCallback((nextGame: GameState) => {
     gameRef.current = nextGame;
     setGame(nextGame);
     if (nextGame.mode !== 'solo' && multiplayerSessionRef.current) {
       multiplayerSessionRef.current = {
         ...multiplayerSessionRef.current,
         game: nextGame,
-        bag: [...bagRef.current],
-        duelSequence: [...duelSequenceRef.current],
-        duelDrawIndex: { ...duelDrawIndexRef.current },
       };
       persistMultiplayerSession(multiplayerSessionRef.current);
     }
-    if (sync && nextGame.mode !== 'solo' && localPlayerRef.current === 1) {
-      sendSocketMessage({ type: 'state', state: nextGame });
-    }
-  }, [sendSocketMessage]);
+  }, []);
 
   const captureBinding = useCallback((action: KeyboardAction, event: KeyboardEvent) => {
     if (event.key === 'Escape') {
@@ -543,14 +537,9 @@ function useTetrisGame() {
         const playerId = message.playerId;
         localPlayerRef.current = playerId;
         const saved = multiplayerSessionRef.current;
-        if (playerId === 1 && saved) {
-          bagRef.current = [...(saved.bag || [])];
-          duelSequenceRef.current = [...(saved.duelSequence || [])];
-          duelDrawIndexRef.current = saved.duelDrawIndex ? { ...saved.duelDrawIndex } : { 1: 0, 2: 0 };
-        }
         const restoredState = isGameState(message.state)
           ? message.state
-          : saved?.game && isGameState(saved.game) ? saved.game : initialGame(gameMode);
+          : initialGame(gameMode);
         const peerConnected = message.peerConnected === true;
         const resumedState = !peerConnected && restoredState.status === 'playing'
           ? { ...restoredState, status: 'paused' as const, message: 'Waiting for the other player to reconnect' }
@@ -570,35 +559,19 @@ function useTetrisGame() {
           playerId,
           error: peerConnected ? '' : 'Your game was restored. Waiting for the other player to reconnect.',
         });
-        publish(resumedState, playerId === 1);
+        publish(resumedState);
         return;
       }
       if (message.type === 'peer_joined' && localPlayerRef.current === 1) {
         setCoop((current) => ({ ...current, phase: 'connected', error: '' }));
-        startGame(gameRef.current.mode === 'duel' ? 'duel' : 'coop');
         return;
       }
-      if (message.type === 'player_action' && localPlayerRef.current === 1) {
-        if ((message.playerId === 1 || message.playerId === 2)
-          && typeof message.action === 'string'
-          && ['left', 'right', 'rotate', 'down', 'drop'].includes(message.action)) {
-          movePlayer(message.playerId, message.action as Action);
-        }
-        return;
-      }
-      if (message.type === 'game_command' && localPlayerRef.current === 1) {
-        if (message.command === 'toggle_pause') togglePause();
-        if (message.command === 'restart') startGame(gameRef.current.mode === 'duel' ? 'duel' : 'coop');
-        if (message.command === 'frog_flush') activateFrogFlush();
-        return;
-      }
-      if (message.type === 'game_state' && localPlayerRef.current === 2 && isGameState(message.state)) {
-        publish(message.state, false);
+      if (message.type === 'game_state' && localPlayerRef.current && isGameState(message.state)) {
+        publish(message.state);
         return;
       }
       if (message.type === 'peer_left' && localPlayerRef.current) {
-        const source = gameRef.current;
-        const peerName = source.mode === 'duel' ? 'rival' : 'partner';
+        const peerName = gameRef.current.mode === 'duel' ? 'rival' : 'partner';
         const reconnecting = message.reconnecting !== false;
         setCoop((current) => ({
           ...current,
@@ -607,17 +580,10 @@ function useTetrisGame() {
             ? `Your ${peerName} refreshed or disconnected. Waiting for them to return.`
             : `Your ${peerName} left the room.`,
         }));
-        publish({
-          ...source,
-          status: source.status === 'gameover' ? 'gameover' : 'paused',
-          message: `${peerName === 'rival' ? 'Rival' : 'Partner'} disconnected — board preserved`,
-        }, localPlayerRef.current === 1);
         return;
       }
       if (message.type === 'peer_rejoined') {
         setCoop((current) => ({ ...current, phase: 'connected', error: '' }));
-        const source = gameRef.current;
-        publish({ ...source, message: 'Player reconnected — resume when ready' }, localPlayerRef.current === 1);
         return;
       }
       if (message.type === 'peer_expired') {
@@ -662,7 +628,7 @@ function useTetrisGame() {
         }));
       }
     };
-  }, [activateFrogFlush, closeCoopSocket, movePlayer, publish, startGame, togglePause]);
+  }, [closeCoopSocket, publish]);
 
   useEffect(() => {
     if (!bindingAction) return;
@@ -675,6 +641,15 @@ function useTetrisGame() {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target;
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable)) return;
+      const isModifierKey = [
+        'ControlLeft',
+        'ControlRight',
+        'AltLeft',
+        'AltRight',
+        'MetaLeft',
+        'MetaRight',
+      ].includes(event.code);
+      if (!isModifierKey && (event.ctrlKey || event.metaKey || event.altKey)) return;
       const action = KEYBOARD_ACTIONS.find((candidate) => keyBindings[candidate].code === event.code);
       if (!action) return;
       event.preventDefault();
@@ -697,7 +672,7 @@ function useTetrisGame() {
 
   useEffect(() => {
     if (game.status !== 'playing') return;
-    if (game.mode !== 'solo' && localPlayerRef.current !== 1) return;
+    if (game.mode !== 'solo') return;
     const speed = Math.max(120, 820 - (game.level - 1) * 60);
     const timer = window.setInterval(() => {
       const players = [...gameRef.current.active]
