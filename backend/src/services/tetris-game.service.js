@@ -478,17 +478,21 @@ export function tickTetrisGame(session, elapsed = 25) {
   });
   session.gravityElapsed += elapsed;
   const speed = getTetrisDropDelay(session);
-  if (session.gravityElapsed >= speed) {
-    session.gravityElapsed %= speed;
+  const steps = speed > 0 ? Math.min(ROWS, Math.floor(session.gravityElapsed / speed)) : ROWS;
+  session.gravityElapsed = speed > 0 ? session.gravityElapsed % speed : 0;
+  for (let step = 0; step < steps; step += 1) {
+    let moved = false;
     players.forEach((player) => {
       if (!locked.has(player) && session.state.status === "playing") {
-        changed = moveTetrisPlayer(session, player, "down") || changed;
+        moved = moveTetrisPlayer(session, player, "down") || moved;
       }
     });
+    changed = moved || changed;
+    if (!moved) break;
   }
   return changed;
 }
 
 export function getTetrisDropDelay(session) {
-  return Math.max(120, 820 - (session.state.level - 1) * 60);
+  return Math.max(0, 820 * (32 - session.state.level) / 31);
 }

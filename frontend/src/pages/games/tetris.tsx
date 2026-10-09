@@ -797,10 +797,13 @@ function useTetrisGame() {
         return;
       }
       gravityElapsedRef.current += elapsed;
-      const speed = Math.max(120, 820 - (source.level - 1) * 60);
-      if (gravityElapsedRef.current >= speed) {
-        gravityElapsedRef.current %= speed;
+      const speed = Math.max(0, 820 * (32 - source.level) / 31);
+      const steps = speed > 0 ? Math.min(ROWS, Math.floor(gravityElapsedRef.current / speed)) : ROWS;
+      gravityElapsedRef.current = speed > 0 ? gravityElapsedRef.current % speed : 0;
+      for (let step = 0; step < steps; step += 1) {
+        const previousY = gameRef.current.active[0]?.y;
         movePlayer(piece.player, 'down');
+        if (gameRef.current.active[0]?.y === previousY) break;
       }
     }, 16);
     return () => window.clearInterval(timer);

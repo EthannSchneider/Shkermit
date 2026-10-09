@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { commandTetrisGame, createTetrisGame, moveTetrisPlayer, tickTetrisGame } from "../src/services/tetris-game.service.js";
+import { commandTetrisGame, createTetrisGame, getTetrisDropDelay, moveTetrisPlayer, tickTetrisGame } from "../src/services/tetris-game.service.js";
 
 function groundedGame(mode = "duel") {
   const game = createTetrisGame(mode);
@@ -284,3 +284,56 @@ test("gravity falls on its own schedule and starts a full delay at contact", () 
   tickTetrisGame(game, 1);
   assert.equal(board(game).flat().filter(Boolean).length, 4);
 });
+
+test("gravity speeds up every level until instant falling at level 32", () => {
+  const game = createTetrisGame("duel");
+  assert.equal(getTetrisDropDelay(game), 820);
+  let previousDelay = 820;
+  for (let level = 2; level <= 32; level += 1) {
+    game.state.level = level;
+    const delay = getTetrisDropDelay(game);
+    assert.ok(delay < previousDelay);
+    previousDelay = delay;
+  }
+  assert.equal(previousDelay, 0);
+  game.state.level = 100;
+  assert.equal(getTetrisDropDelay(game), 0);
+});
+
+for (const mode of ["coop", "duel"]) {
+  const airborneGame = (level) => {
+    const game = createTetrisGame(mode);
+    game.state.level = level;
+    game.state.active = [1, 2].map((player) => ({
+      type: "O", player, rotation: 0, x: player === 1 ? 2 : 8, y: 0,
+      lockElapsed: 0, lockResets: 0,
+    }));
+    return game;
+  };
+
+  test(`${mode}: fast gravity catches up multiple rows and retains elapsed time`, () => {
+    const game = airborneGame(31);
+    tickTetrisGame(game, 60);
+    assert.equal(piece(game, 1).y, 2);
+    assert.equal(piece(game, 2).y, 2);
+    tickTetrisGame(game, 20);
+    assert.equal(piece(game, 1).y, 3);
+    assert.equal(piece(game, 2).y, 3);
+  });
+
+  test(`${mode}: zero-delay gravity lands immediately and preserves the lock delay`, () => {
+    const game = airborneGame(32);
+    tickTetrisGame(game, 25);
+    assert.equal(piece(game, 1).y, 18);
+    assert.equal(piece(game, 2).y, 18);
+    assert.equal(piece(game, 1).lockElapsed, 0);
+    assert.equal(game.gravityElapsed, 0);
+    assert.equal(board(game).flat().filter(Boolean).length, 0);
+    assert.equal(moveTetrisPlayer(game, 1, "left"), true);
+    tickTetrisGame(game, 499);
+    assert.equal(board(game).flat().filter(Boolean).length, 0);
+    tickTetrisGame(game, 1);
+    assert.equal(board(game).flat().filter(Boolean).length, mode === "coop" ? 8 : 4);
+    assert.equal(Number.isFinite(game.gravityElapsed), true);
+  });
+}
