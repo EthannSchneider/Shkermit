@@ -2,6 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import shkermitImage from '../../assets/img/1 ShkermitRTX.png';
 import { useAuth } from '../../context/auth-context';
 import { useBestScore } from '../../hooks/use-best-score';
+import { useGamepad } from '../../hooks/use-gamepad';
+import type { GamepadControl } from '../../lib/gamepad';
+import { ControllerHelp } from '../../components/games/controller-help';
+import { useControllerBindings } from '../../hooks/use-controller-bindings';
+import { controllerBindingLabel } from '../../lib/controller-bindings';
 
 const getSavedHighScore = () => {
   const value = Number.parseInt(localStorage.getItem('snakeHighScore') ?? '0', 10);
@@ -9,6 +14,9 @@ const getSavedHighScore = () => {
 };
 
 export default function SnakeGame() {
+  const controllerSettings = useControllerBindings('snake');
+  const startControlLabel = controllerBindingLabel(controllerSettings.bindings, 'south');
+  const pauseControlLabel = controllerBindingLabel(controllerSettings.bindings, 'start');
   const { user } = useAuth();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameStarted, setGameStarted] = useState(false);
@@ -27,7 +35,8 @@ export default function SnakeGame() {
   const [food, setFood] = useState({ x: 18, y: 18 });
   const [direction, setDirection] = useState({ x: 0, y: 0 });
   const [gameStatus, setGameStatus] = useState<'playing' | 'paused' | 'gameover'>('playing');
-  const initialLoadRef = useRef(true);
+  const movementDirectionRef = useRef({ x: 0, y: 0 });
+  const turnPendingRef = useRef(false);
   const highScoreRef = useRef(highScore);
   const imageRef = useRef<HTMLImageElement | null>(null);
 
@@ -61,64 +70,58 @@ export default function SnakeGame() {
     setFood(generateFood());
     setScore(0);
     setDirection({ x: 1, y: 0 });
+    movementDirectionRef.current = { x: 1, y: 0 };
+    turnPendingRef.current = false;
     setGameOver(false);
     setIsPaused(false);
     setGameStatus('playing');
     setGameStarted(true);
-    initialLoadRef.current = true;
   }, [generateFood]);
 
+  const handleControl = useCallback((control: GamepadControl) => {
+    if (!gameStarted || gameStatus === 'gameover') {
+      if (control === 'south' || control === 'start') resetGame();
+      return;
+    }
+    if (control === 'start') {
+      setIsPaused(prev => !prev);
+      return;
+    }
+    if (isPaused || turnPendingRef.current) return;
+    const turns = {
+      up: { x: 0, y: -1 }, down: { x: 0, y: 1 },
+      left: { x: -1, y: 0 }, right: { x: 1, y: 0 },
+    };
+    if (!(control in turns)) return;
+    const next = turns[control as keyof typeof turns];
+    const current = movementDirectionRef.current;
+    if ((next.x === current.x && next.y === current.y)
+      || (next.x === -current.x && next.y === -current.y)) return;
+    turnPendingRef.current = true;
+    setDirection(next);
+  }, [gameStarted, gameStatus, isPaused, resetGame]);
+
+  const controllerStatus = useGamepad({
+    onControl: handleControl, repeat: ['up', 'down', 'left', 'right'],
+    bindings: controllerSettings.bindings,
+    enabled: !controllerSettings.settingsOpen,
+    onCapture: controllerSettings.onCapture,
+  });
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (initialLoadRef.current) {
-      initialLoadRef.current = false;
-    }
-
-    if (!gameStarted) {
-      if (e.key === 'Enter') {
-        resetGame();
-      }
-      return;
-    }
-
-    if (gameStatus === 'gameover') {
-      if (e.key === 'Enter') {
-        resetGame();
-      }
-      return;
-    }
-
-    switch (e.key) {
-      case 'ArrowUp':
-        e.preventDefault();
-        if (direction.y !== 1) {
-          setDirection({ x: 0, y: -1 });
-        }
-        break;
-      case 'ArrowDown':
-        e.preventDefault();
-        if (direction.y !== -1) {
-          setDirection({ x: 0, y: 1 });
-        }
-        break;
-      case 'ArrowLeft':
-        e.preventDefault();
-        if (direction.x !== 1) {
-          setDirection({ x: -1, y: 0 });
-        }
-        break;
-      case 'ArrowRight':
-        e.preventDefault();
-        if (direction.x !== -1) {
-          setDirection({ x: 1, y: 0 });
-        }
-        break;
-      case 'p':
-      case 'P':
-        e.preventDefault();
-        setIsPaused(prev => !prev);
-        break;
-    }
-  }, [gameStarted, direction, gameStatus, resetGame]);
+    const target = e.target;
+    if (target instanceof HTMLElement && (target.matches('input, textarea, select') || target.isContentEditable)) return;
+    const controls: Record<string, GamepadControl> = {
+      ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+      Enter: 'south', ' ': 'south', p: 'start', P: 'start',
+    };
+    const control = controls[e.key];
+    if (!control) return;
+    if (control === 'south' && target instanceof HTMLElement && target.matches('button, a')) return;
+    e.preventDefault();
+    if (e.repeat && (control === 'start' || control === 'south')) return;
+    handleControl(control);
+  }, [handleControl]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -194,6 +197,9 @@ export default function SnakeGame() {
     const interval = setInterval(() => {
       if (gameStatus === 'gameover' || isPaused) return;
 
+      movementDirectionRef.current = direction;
+      turnPendingRef.current = false;
+
       const newHead = {
         x: snake[0].x + direction.x,
         y: snake[0].y + direction.y,
@@ -263,11 +269,12 @@ export default function SnakeGame() {
             />
             {!gameStarted && (
               <div className="text-center mt-4">
-                <p className="text-2xl font-bold text-green-400 mb-2">Press Space to Start!</p>
-                <p className="text-gray-300">Use arrow keys to move</p>
+                <p className="text-2xl font-bold text-green-400 mb-2">Press Enter, Space, or {startControlLabel} to start!</p>
+                <p className="text-gray-300">Use arrow keys or your controller controls to move</p>
               </div>
             )}
-            {isPaused && gameStatus === 'gameover' && (
+            {isPaused && !gameOver && <p className="mt-4 text-center text-yellow-400">Paused · P or {pauseControlLabel} to resume</p>}
+            {gameOver && (
               <div className="text-center mt-4">
                 <p className="text-2xl font-bold text-yellow-400 mb-2">Game Over!</p>
                 {gameOver && (
@@ -279,7 +286,7 @@ export default function SnakeGame() {
                   onClick={resetGame}
                   className="mt-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold transition-colors"
                 >
-                  {isPaused ? 'Resume' : 'Play Again'}
+                  Play Again
                 </button>
               </div>
             )}
@@ -312,17 +319,22 @@ export default function SnakeGame() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span>🔄</span>
-                  <span className="text-sm">Press Enter or P to play again</span>
+                  <span className="text-sm">Press Enter, Space, or {startControlLabel} to play again</span>
                 </div>
               </div>
             </div>
 
+            <ControllerHelp
+              status={controllerStatus}
+              settings={controllerSettings}
+              onOpen={() => { if (gameStarted && !gameOver && !isPaused) setIsPaused(true); }}
+            />
+
             <button
               onClick={resetGame}
-              disabled={gameOver && !isPaused}
               className="w-full bg-linear-to-b from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 py-4 rounded-2xl font-bold text-xl transition-all duration-200 shadow-lg hover:shadow-green-500/30 hover:scale-105"
             >
-              {gameOver && !isPaused ? 'Press Enter to Play Again' : 'Start New Game'}
+              {gameOver ? 'Play Again' : 'Start New Game'}
             </button>
           </div>
         </div>

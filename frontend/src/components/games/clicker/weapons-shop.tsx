@@ -78,10 +78,13 @@ export default function WeaponsShop({ score, weaponCounts, onPurchase }: Weapons
           const canAfford = score >= weapon.cost;
 
           return (
-            <div
+            <button
+              type="button"
               key={weapon.id}
-              onClick={() => canAfford && onPurchase(weapon)}
-              className={`p-4 rounded-xl cursor-pointer transition-all duration-200 flex flex-col items-center gap-3 ${
+              disabled={!canAfford}
+              onClick={() => onPurchase(weapon)}
+              aria-label={`Buy ${weapon.name} for ${weapon.cost.toLocaleString()} shkermites`}
+              className={`w-full p-4 rounded-xl cursor-pointer transition-all duration-200 flex flex-col items-center gap-3 ${
                 canAfford
                   ? 'bg-linear-to-b from-red-500/50 to-orange-500/50 border border-red-400 hover:scale-105 hover:from-red-500/60 hover:to-orange-500/60'
                   : 'bg-gray-500/30 border border-gray-400 opacity-50 cursor-not-allowed'
@@ -112,7 +115,7 @@ export default function WeaponsShop({ score, weaponCounts, onPurchase }: Weapons
                   <div className="text-red-400 text-sm font-bold px-3">Buy</div>
                 )}
               </div>
-            </div>
+            </button>
           );
         })}
       </div>

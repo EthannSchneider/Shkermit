@@ -32,6 +32,16 @@ Vite proxies `/api` requests to `http://localhost:3001`. Prisma creates the SQLi
 
 Shkermit Stacks includes online two-player co-op and duel modes. The first player creates a five-character room code and the second joins it from another browser. Co-op uses one shared board, while duel gives each player a separate board and turns multi-line clears into garbage attacks. Refreshing automatically reclaims the same player seat and board; the server reserves disconnected seats for 30 seconds before expiring them. Vite proxies `/ws/tetris` to the backend during development; in production the Express server handles the WebSocket upgrade on the same origin as the site.
 
+All three playable games support controllers that the browser recognizes with a standard gamepad layout. Connect a controller over USB or Bluetooth and press a button while the game page is focused. Each game shows connection status and its controls. If several controllers are connected, the game keeps using the first supported controller until it disconnects. Controller input is suppressed while the page is unfocused or a text field is being edited; release held buttons before using them again. Keyboard, mouse, and touch controls remain available.
+
+Choose **Customize controls** on any game page to assign controller inputs with a selector or **Press to bind**. Buttons, bumpers, triggers, stick presses, and directions on either stick are available. Release all inputs before a capture, then press or move the input you want. Assigning an input already used by another action swaps those bindings. Changes save separately for each game in local storage, and the controls displayed on the page update immediately. **Reset controller defaults** restores that game's original bindings. Snake and Stacks pause when settings open; resume when you are ready to play. The table below lists the defaults.
+
+| Game | Controller controls (Xbox / PlayStation labels) |
+| --- | --- |
+| Snake | D-pad or left stick to steer; A / Cross to start or restart; Start / Options to pause or resume. |
+| Clicker | A / Cross to earn or activate a focused button; hold X / Square to earn repeatedly; D-pad or left stick to cycle through available shop purchases and buttons; B / Circle to dismiss victory. |
+| Stacks | D-pad or left stick to move; Up or A / Cross to rotate; X / Square to hard drop; Y / Triangle for Frog Flush; Start / Options to pause; Back / Share to restart; B / Circle to return to the menu when paused or finished. In the menu, A / Cross starts solo, X / Square creates co-op, Y / Triangle creates a duel, and B / Circle cancels a pending room. Online controls act on the local player's seat. Joining a room still uses the room code field. |
+
 The account API supports registration, email confirmation, login/logout, session restore, profile updates, password changes, and account deletion. Authentication uses an opaque token in an `HttpOnly`, `SameSite=Strict` cookie; only its SHA-256 hash is saved in SQLite. Passwords are hashed with bcrypt. Email confirmation tokens are also hashed, expire after 24 hours by default, and can only be used once.
 
 ### Backend structure
@@ -79,7 +89,7 @@ Useful commands include `npm run db:migrate:status`, `npm run db:generate`, and 
 
 ```bash
 cd backend && npm test
-cd frontend && npm run lint && npm run build
+cd frontend && npm test && npm run lint && npm run build
 ```
 
 ### Docker

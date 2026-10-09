@@ -6,12 +6,17 @@ import { ControlPad } from './control-pad';
 import { MiniPiece } from './mini-piece';
 import type { PlayerId, TetrisGameController } from './types';
 import antoineLoupImage from '../../../assets/img/antoine-loup.jpg';
+import { useGamepad } from '../../../hooks/use-gamepad';
+import { ControllerHelp } from '../controller-help';
+import { handleTetrisController } from './controller-input';
+import { useControllerBindings } from '../../../hooks/use-controller-bindings';
 
 type TetrisGameProps = {
   controller: TetrisGameController;
 };
 
 export default function TetrisGame({ controller }: TetrisGameProps) {
+  const controllerSettings = useControllerBindings('tetris');
   const [isAntoineLoupOpen, setIsAntoineLoupOpen] = useState(false);
   const {
     game,
@@ -37,6 +42,23 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
   const gameMessage = ([1, 2] as PlayerId[]).reduce(
     (message, player) => message.split(`PLAYER ${player}`).join(playerLabel(player)),
     game.message,
+  );
+  const controllerStatus = useGamepad({
+    enabled: !bindingAction && !isAntoineLoupOpen && !controllerSettings.settingsOpen,
+    bindings: controllerSettings.bindings,
+    onCapture: controllerSettings.onCapture,
+    repeat: ['left', 'right', 'down'],
+    onControl: (control) => handleTetrisController(control, controller),
+  });
+  const controllerHelp = (
+    <ControllerHelp
+      status={controllerStatus}
+      settings={controllerSettings}
+      onOpen={() => {
+        setBindingAction(null);
+        if (game.status === 'playing') sendCommand('toggle_pause');
+      }}
+    />
   );
 
   useEffect(() => {
@@ -176,6 +198,8 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
             </div>
             {bindingAction && <p className="mt-3 text-[9px] text-lime-100/55">Press any key for {KEYBOARD_ACTION_LABELS[bindingAction]}. Press Escape to cancel. If that key is already used, the two bindings will swap.</p>}
           </section>
+
+          {controllerHelp}
 
           <button
             type="button"
@@ -361,6 +385,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
         </div>
 
         <div className="mt-6 grid gap-3">
+          {controllerHelp}
           <div className="rounded-xl border border-lime-300/10 bg-white/2.5 p-3">
             <p className="mb-2 text-center text-[9px]" style={{ color: PLAYER_COLORS[game.mode !== 'solo' ? coop.playerId || 1 : 1] }}>
               {game.mode !== 'solo' ? `${playerLabel(coop.playerId || 1)} TOUCH CONTROLS` : 'TOUCH CONTROLS'}

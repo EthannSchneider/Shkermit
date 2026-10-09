@@ -4,12 +4,14 @@ const Shkermit = ({ score, handleMainClick }: { score: number; handleMainClick: 
   return (
     <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 shadow-2xl w-full flex flex-col h-[500px]">
       <div className="text-6xl mb-4">🖱️</div>
-      <img
-        src={shkermitImage}
-        alt="Shkermit"
+      <button
+        type="button"
         onClick={handleMainClick}
-        className="h-64 object-contain cursor-pointer hover:scale-110 transition-transform duration-200"
-      />
+        aria-label="Click Shkermit to earn shkermites"
+        className="cursor-pointer rounded-lg hover:scale-110 transition-transform duration-200"
+      >
+        <img src={shkermitImage} alt="Shkermit" className="h-64 w-full object-contain" />
+      </button>
       <div className="text-4xl font-bold text-center mt-6 text-yellow-400 drop-shadow-lg whitespace-nowrap">
         {score.toLocaleString()}
       </div>

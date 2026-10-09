@@ -7,8 +7,13 @@ import Buttons from '../../components/games/clicker/buttons';
 import Victory, { VICTORY_COST } from '../../components/games/clicker/victory';
 import { useAuth } from '../../context/auth-context';
 import { useBestScore } from '../../hooks/use-best-score';
+import { useGamepad } from '../../hooks/use-gamepad';
+import { ControllerHelp } from '../../components/games/controller-help';
+import { activateControllerFocus, moveControllerFocus } from '../../lib/controller-navigation';
+import { useControllerBindings } from '../../hooks/use-controller-bindings';
 
 export default function ShkermitClicker() {
+  const controllerSettings = useControllerBindings('clicker');
   const { user } = useAuth();
   const { bestScore, recordScore } = useBestScore('clicker', 'classic');
   const [score, setScore] = useState(0);
@@ -19,6 +24,7 @@ export default function ShkermitClicker() {
   const [hasWon, setHasWon] = useState(false);
   const [showVictory, setShowVictory] = useState(false);
   const initialLoadRef = useRef(true);
+  const gameRootRef = useRef<HTMLDivElement>(null);
 
 
   useEffect(() => {
@@ -46,6 +52,31 @@ export default function ShkermitClicker() {
   const handleMainClick = () => {
     setScore(prev => prev + shkermitesPerClick);
   };
+
+  const controllerStatus = useGamepad({
+    bindings: controllerSettings.bindings,
+    enabled: !controllerSettings.settingsOpen,
+    onCapture: controllerSettings.onCapture,
+    repeat: ['up', 'down', 'left', 'right', 'west'],
+    onControl: (control) => {
+      const root = gameRootRef.current;
+      if (!root) return;
+      const dialog = root.querySelector<HTMLElement>('[role="dialog"]');
+      const scope = dialog ?? root;
+      if (['up', 'down', 'left', 'right'].includes(control)) {
+        moveControllerFocus(scope, control === 'up' || control === 'left');
+      } else if (control === 'south') {
+        if (!activateControllerFocus(scope)) {
+          if (dialog) dialog.querySelector<HTMLButtonElement>('button')?.click();
+          else handleMainClick();
+        }
+      } else if (control === 'west' && !showVictory) {
+        handleMainClick();
+      } else if (control === 'east' && showVictory) {
+        setShowVictory(false);
+      }
+    },
+  });
 
   const resetGame = () => {
     setScore(0);
@@ -132,7 +163,7 @@ export default function ShkermitClicker() {
    }, [score, clicksPerSecond, unlockedUpgrades, unlockedWeapons, shkermitesPerClick, hasWon]);
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-purple-900 via-indigo-900 to-black text-white p-8">
+    <div ref={gameRootRef} className="min-h-screen bg-linear-to-b from-purple-900 via-indigo-900 to-black text-white p-8 [&_button:focus]:outline-2 [&_button:focus]:outline-offset-4 [&_button:focus]:outline-yellow-300">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-4xl font-bold text-center mb-8 text-transparent bg-clip-text bg-linear-to-b from-purple-400 to-pink-500">
           ⭐ Shkermit Clicker ⭐
@@ -142,6 +173,8 @@ export default function ShkermitClicker() {
             🏆 {user.username}'s best: {bestScore.toLocaleString()}
           </p>
         )}
+
+        <ControllerHelp status={controllerStatus} settings={controllerSettings} />
 
         <div className="flex flex-col lg:flex-row gap-8 justify-center lg:items-start items-center-safe">
           <div className="flex flex-col items-center gap-6">

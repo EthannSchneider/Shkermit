@@ -78,10 +78,13 @@ export default function Shop({ score, upgradeCounts, onPurchase }: ShopProps) {
           const canAfford = score >= upgrade.cost;
 
           return (
-            <div
+            <button
+              type="button"
               key={upgrade.id}
-              onClick={() => canAfford && onPurchase(upgrade)}
-              className={`p-4 rounded-xl cursor-pointer transition-all duration-200 flex flex-col items-center gap-3 ${
+              disabled={!canAfford}
+              onClick={() => onPurchase(upgrade)}
+              aria-label={`Buy ${upgrade.name} for ${upgrade.cost.toLocaleString()} shkermites`}
+              className={`w-full p-4 rounded-xl cursor-pointer transition-all duration-200 flex flex-col items-center gap-3 ${
                 canAfford
                   ? 'bg-linear-to-b from-purple-500/50 to-pink-500/50 border border-purple-400 hover:scale-105 hover:from-purple-500/60 hover:to-pink-500/60'
                   : 'bg-gray-500/30 border border-gray-400 opacity-50 cursor-not-allowed'
@@ -112,7 +115,7 @@ export default function Shop({ score, upgradeCounts, onPurchase }: ShopProps) {
                   <div className="text-purple-400 text-sm font-bold px-3">Buy</div>
                 )}
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
