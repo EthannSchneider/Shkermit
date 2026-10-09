@@ -5,18 +5,23 @@ import {
   DEFAULT_BINDINGS,
   KEY_BINDINGS_STORAGE_KEY,
   KEYBOARD_ACTIONS,
+  LOCK_DELAY,
+  MOVEMENT_REPEAT,
   PIECES,
   ROWS,
   SOLO_COLS,
 } from '../../components/games/tetris/constants';
 import {
+  advanceLock,
   getCells,
   getCollidingPieces,
   getGhost,
   getPlayerBoard,
+  holdPiece,
   isValid,
   makeBoard,
   spawnPiece,
+  updateLockAfterMove,
 } from '../../components/games/tetris/game-logic';
 import {
   clearMultiplayerSession,
@@ -68,6 +73,7 @@ function useTetrisGame() {
   const [bindingAction, setBindingAction] = useState<KeyboardAction | null>(null);
   const gameRef = useRef(game);
   const bagRef = useRef<PieceName[]>([]);
+  const gravityElapsedRef = useRef(0);
   const duelSequenceRef = useRef<PieceName[]>([]);
   const duelDrawIndexRef = useRef<Record<PlayerId, number>>({ 1: 0, 2: 0 });
   const socketRef = useRef<WebSocket | null>(null);
@@ -171,6 +177,7 @@ function useTetrisGame() {
   }, [publish]);
 
   const startGame = useCallback((mode: GameMode = gameRef.current.mode) => {
+    gravityElapsedRef.current = 0;
     bagRef.current = [];
     duelSequenceRef.current = [];
     duelDrawIndexRef.current = { 1: 0, 2: 0 };
@@ -196,6 +203,8 @@ function useTetrisGame() {
       best: getSavedBest(mode),
       meter: 0,
       next: { 1: nextOne, 2: nextTwo },
+      hold: { 1: null, 2: null },
+      holdUsed: { 1: false, 2: false },
       playerStats: {
         1: { score: 0, lines: 0, combo: -1 },
         2: { score: 0, lines: 0, combo: -1 },
@@ -262,6 +271,7 @@ function useTetrisGame() {
       duelBoards,
       active,
       next,
+      holdUsed: { ...source.holdUsed, [player]: false },
       score: source.score + gained,
       lines: source.lines + fullRows.length,
       level: source.mode === 'duel'
@@ -327,6 +337,15 @@ function useTetrisGame() {
     const board = getPlayerBoard(source, player);
     const collisionPieces = getCollidingPieces(source, player);
 
+    if (action === 'hold') {
+      const held = holdPiece(source, player, () => source.mode === 'duel' ? drawDuelType(player) : drawType());
+      if (!held) return;
+      const spawned = held.active.find((item) => item.player === player)!;
+      if (!isValid(spawned, board, collisionPieces, source.cols)) endGame(held, player);
+      else publish(held);
+      return;
+    }
+
     if (action === 'drop') {
       let dropped = { ...piece };
       let distance = 0;
@@ -343,13 +362,13 @@ function useTetrisGame() {
       return;
     }
 
-    if (action === 'rotate') {
-      const rotated = { ...piece, rotation: (piece.rotation + 1) % 4 };
+    if (action === 'rotate' || action === 'rotate_ccw') {
+      const rotated = { ...piece, rotation: (piece.rotation + (action === 'rotate' ? 1 : 3)) % 4 };
       const kicks = [0, -1, 1, -2, 2];
       const kicked = kicks
         .map((offset) => ({ ...rotated, x: rotated.x + offset }))
         .find((candidate) => isValid(candidate, board, collisionPieces, source.cols));
-      if (kicked) publish({ ...source, active: source.active.map((item) => item.player === player ? kicked : item) });
+      if (kicked) publish({ ...source, active: source.active.map((item) => item.player === player ? updateLockAfterMove(piece, kicked, source) : item) });
       return;
     }
 
@@ -363,14 +382,12 @@ function useTetrisGame() {
       } : source.playerStats;
       publish({
         ...source,
-        active: source.active.map((item) => item.player === player ? moved : item),
+        active: source.active.map((item) => item.player === player ? updateLockAfterMove(piece, moved, source) : item),
         score: source.score + (action === 'down' ? 1 : 0),
         playerStats,
       });
-    } else if (action === 'down') {
-      lockPiece(source, player);
     }
-  }, [lockPiece, publish]);
+  }, [drawDuelType, drawType, endGame, lockPiece, publish]);
 
   const activateFrogFlush = useCallback(() => {
     const source = gameRef.current;
@@ -688,6 +705,13 @@ function useTetrisGame() {
   }, [bindingAction, captureBinding]);
 
   useEffect(() => {
+    const held = new Map<string, { action: Action; nextRepeat: number }>();
+    const clearHeld = () => held.clear();
+    const sendMovement = (action: Action) => {
+      const source = gameRef.current;
+      const player = source.mode !== 'solo' ? localPlayerRef.current : 1;
+      if (source.status === 'playing' && player) sendAction(player, action);
+    };
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target;
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable)) return;
@@ -703,35 +727,82 @@ function useTetrisGame() {
       const action = KEYBOARD_ACTIONS.find((candidate) => keyBindings[candidate].code === event.code);
       if (!action) return;
       event.preventDefault();
+      if (event.repeat || bindingAction) return;
 
-      if (action === 'pause' && !event.repeat) return sendCommand('toggle_pause');
-      if (action === 'restart' && !event.repeat && gameRef.current.status !== 'ready') return sendCommand('restart');
-      if (action === 'frogFlush' && !event.repeat) return sendCommand('frog_flush');
-      if (gameRef.current.status !== 'playing' || action === 'restart') return;
-
-      const source = gameRef.current;
-      const player = source.mode !== 'solo' ? localPlayerRef.current : 1;
-      if (player && !(event.repeat && (action === 'drop' || action === 'rotate'))) {
-        sendAction(player, action as Action);
+      if (action === 'pause') {
+        clearHeld();
+        return sendCommand('toggle_pause');
       }
+      if (action === 'restart') {
+        clearHeld();
+        if (gameRef.current.status !== 'ready') sendCommand('restart');
+        return;
+      }
+      if (action === 'frogFlush') return sendCommand('frog_flush');
+      if (gameRef.current.status !== 'playing') return;
+      if (action === 'left' || action === 'right' || action === 'down') {
+        held.set(event.code, { action, nextRepeat: performance.now() + MOVEMENT_REPEAT.delay });
+      }
+      sendMovement(action);
     };
-
+    const onKeyUp = (event: KeyboardEvent) => held.delete(event.code);
+    const onVisibility = () => { if (document.hidden) clearHeld(); };
+    const timer = window.setInterval(() => {
+      const target = document.activeElement;
+      if (gameRef.current.status !== 'playing' || !document.hasFocus() || document.hidden
+        || (target instanceof HTMLElement && (target.matches('input, textarea, select') || target.isContentEditable))) {
+        clearHeld();
+        return;
+      }
+      const now = performance.now();
+      held.forEach((input) => {
+        if (now < input.nextRepeat) return;
+        sendMovement(input.action);
+        input.nextRepeat = now + MOVEMENT_REPEAT.interval;
+      });
+    }, 16);
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [keyBindings, sendAction, sendCommand]);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', clearHeld);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', clearHeld);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [bindingAction, keyBindings, sendAction, sendCommand]);
 
   useEffect(() => {
     if (game.status !== 'playing') return;
     if (game.mode !== 'solo') return;
-    const speed = Math.max(120, 820 - (game.level - 1) * 60);
+    let lastTick = performance.now();
     const timer = window.setInterval(() => {
-      const players = [...gameRef.current.active]
-        .sort((a, b) => Math.max(...getCells(b).map(({ y }) => y)) - Math.max(...getCells(a).map(({ y }) => y)))
-        .map(({ player }) => player);
-      players.forEach((player) => movePlayer(player, 'down'));
-    }, speed);
+      const now = performance.now();
+      const elapsed = Math.min(50, now - lastTick);
+      lastTick = now;
+      const source = gameRef.current;
+      if (source.status !== 'playing' || source.mode !== 'solo') return;
+      const piece = source.active[0];
+      if (!piece) return;
+      const timedPiece = advanceLock(piece, source, elapsed);
+      const updated = { ...source, active: [timedPiece] };
+      gameRef.current = updated;
+      if (timedPiece.lockElapsed! >= LOCK_DELAY) {
+        lockPiece(updated, piece.player);
+        gravityElapsedRef.current = 0;
+        return;
+      }
+      gravityElapsedRef.current += elapsed;
+      const speed = Math.max(120, 820 - (source.level - 1) * 60);
+      if (gravityElapsedRef.current >= speed) {
+        gravityElapsedRef.current %= speed;
+        movePlayer(piece.player, 'down');
+      }
+    }, 16);
     return () => window.clearInterval(timer);
-  }, [game.level, game.mode, game.status, movePlayer]);
+  }, [game.mode, game.status, lockPiece, movePlayer]);
 
   useEffect(() => {
     const saved = multiplayerSessionRef.current;

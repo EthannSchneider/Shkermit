@@ -25,10 +25,10 @@ function controller({ mode = 'solo', status = 'playing', playerId = null, phase 
 
 test('solo controller inputs use gameplay actions for player one', () => {
   const game = controller();
-  for (const control of ['left', 'right', 'down', 'up', 'south', 'west', 'north']) handleTetrisController(control, game);
+  for (const control of ['left', 'right', 'down', 'up', 'south', 'west', 'east', 'north']) handleTetrisController(control, game);
   assert.deepEqual(game.calls, [
     ['sendAction', 1, 'left'], ['sendAction', 1, 'right'], ['sendAction', 1, 'down'],
-    ['sendAction', 1, 'rotate'], ['sendAction', 1, 'rotate'], ['sendAction', 1, 'drop'],
+    ['sendAction', 1, 'rotate_ccw'], ['sendAction', 1, 'rotate'], ['sendAction', 1, 'drop'], ['sendAction', 1, 'hold'],
     ['sendCommand', 'frog_flush'],
   ]);
 });
@@ -39,7 +39,9 @@ test('online co-op and duel actions target the local seat, including player two'
       const game = controller({ mode, playerId, phase: 'connected' });
       handleTetrisController('left', game);
       handleTetrisController('west', game);
-      assert.deepEqual(game.calls, [['sendAction', playerId, 'left'], ['sendAction', playerId, 'drop']]);
+      handleTetrisController('up', game);
+      handleTetrisController('east', game);
+      assert.deepEqual(game.calls, [['sendAction', playerId, 'left'], ['sendAction', playerId, 'drop'], ['sendAction', playerId, 'rotate_ccw'], ['sendAction', playerId, 'hold']]);
     }
     const game = controller({ mode, playerId: null });
     handleTetrisController('west', game);

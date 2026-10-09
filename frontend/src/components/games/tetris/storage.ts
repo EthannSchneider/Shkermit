@@ -31,15 +31,25 @@ export const getSavedBindings = (): KeyboardBindings => {
       window.localStorage.getItem(KEY_BINDINGS_STORAGE_KEY) || 'null',
     ) as Partial<KeyboardBindings> | null;
     if (!saved) return DEFAULT_BINDINGS;
-    const bindingsAreComplete = KEYBOARD_ACTIONS.every((action) => (
-      typeof saved[action]?.code === 'string' && typeof saved[action]?.label === 'string'
-    ));
-    const codes = bindingsAreComplete
-      ? KEYBOARD_ACTIONS.map((action) => saved[action]!.code!)
-      : [];
-    return bindingsAreComplete && new Set(codes).size === KEYBOARD_ACTIONS.length
-      ? saved as KeyboardBindings
-      : DEFAULT_BINDINGS;
+    const bindings = {} as KeyboardBindings;
+    const used = new Set<string>();
+    // Restore existing custom keys before assigning defaults for new actions.
+    for (const action of KEYBOARD_ACTIONS) {
+      const binding = saved[action];
+      if (!binding) continue;
+      if (typeof binding.code !== 'string' || typeof binding.label !== 'string' || used.has(binding.code)) return DEFAULT_BINDINGS;
+      bindings[action] = binding;
+      used.add(binding.code);
+    }
+    for (const action of KEYBOARD_ACTIONS) {
+      if (bindings[action]) continue;
+      const fallback = [DEFAULT_BINDINGS[action], ...Object.values(DEFAULT_BINDINGS)]
+        .find((binding) => !used.has(binding.code));
+      if (!fallback) return DEFAULT_BINDINGS;
+      bindings[action] = { ...fallback };
+      used.add(fallback.code);
+    }
+    return bindings;
   } catch {
     return DEFAULT_BINDINGS;
   }
@@ -73,6 +83,8 @@ export const initialGame = (mode: GameMode = 'solo'): GameState => ({
   best: getSavedBest(mode),
   meter: 0,
   next: { 1: 'T', 2: 'L' },
+  hold: { 1: null, 2: null },
+  holdUsed: { 1: false, 2: false },
   playerStats: {
     1: { score: 0, lines: 0, combo: -1 },
     2: { score: 0, lines: 0, combo: -1 },

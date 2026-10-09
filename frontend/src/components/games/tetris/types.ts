@@ -3,7 +3,7 @@ export type CellType = PieceName | 'G';
 export type PlayerId = 1 | 2;
 export type GameMode = 'solo' | 'coop' | 'duel';
 export type GameStatus = 'ready' | 'playing' | 'paused' | 'gameover';
-export type Action = 'left' | 'right' | 'rotate' | 'down' | 'drop';
+export type Action = 'left' | 'right' | 'rotate' | 'rotate_ccw' | 'down' | 'drop' | 'hold';
 export type GameCommand = 'toggle_pause' | 'restart' | 'frog_flush';
 export type CoopPhase = 'idle' | 'connecting' | 'hosting' | 'connected' | 'error';
 export type KeyboardAction = Action | 'pause' | 'restart' | 'frogFlush';
@@ -32,6 +32,8 @@ export type ActivePiece = {
   rotation: number;
   x: number;
   y: number;
+  lockElapsed?: number;
+  lockResets?: number;
 };
 
 export type GameState = {
@@ -48,6 +50,8 @@ export type GameState = {
   best: number;
   meter: number;
   next: Record<PlayerId, PieceName>;
+  hold: Record<PlayerId, PieceName | null>;
+  holdUsed: Record<PlayerId, boolean>;
   playerStats: Record<PlayerId, PlayerStats>;
   winner: PlayerId | null;
   message: string;

@@ -79,6 +79,19 @@ test('focus loss or disabled controls suppress held actions until release', () =
   assert.deepEqual(newInput.sample(held, 1, true), []);
 });
 
+test('Tetris can repeat movement faster without repeating rotations or hold', () => {
+  const input = new GamepadInput();
+  const held = pad({ buttons: [0, 1, 15] });
+  const sample = (now) => input.sample(held, now, true, ['left', 'right', 'down'], DEFAULT_GAMEPAD_BINDINGS, { delay: 140, interval: 35 });
+  assert.deepEqual(sample(0), ['south', 'east', 'right']);
+  assert.deepEqual(sample(139), []);
+  assert.deepEqual(sample(140), ['right']);
+  assert.deepEqual(sample(174), []);
+  assert.deepEqual(sample(175), ['right']);
+  assert.deepEqual(sample(10000), ['right']);
+  assert.deepEqual(sample(10001), []);
+});
+
 test('disconnects and controller replacements clear held inputs', () => {
   const input = new GamepadInput();
   const held = pad({ buttons: [0] });

@@ -1,16 +1,17 @@
 import { useEffect, useEffectEvent, useState } from 'react';
 import { DEFAULT_GAMEPAD_BINDINGS, GamepadCapture, GamepadInput, selectGamepad } from '../lib/gamepad';
-import type { ControllerStatus, GamepadBindings, GamepadControl, GamepadInputControl } from '../lib/gamepad';
+import type { ControllerStatus, GamepadBindings, GamepadControl, GamepadInputControl, GamepadRepeatTiming } from '../lib/gamepad';
 
 type GamepadOptions = {
   onControl: (control: GamepadControl) => void;
   repeat?: readonly GamepadControl[];
+  repeatTiming?: GamepadRepeatTiming;
   enabled?: boolean;
   bindings?: GamepadBindings;
   onCapture?: (input: GamepadInputControl) => void;
 };
 
-export function useGamepad({ onControl, repeat = [], enabled = true, bindings = DEFAULT_GAMEPAD_BINDINGS, onCapture }: GamepadOptions): ControllerStatus {
+export function useGamepad({ onControl, repeat = [], repeatTiming, enabled = true, bindings = DEFAULT_GAMEPAD_BINDINGS, onCapture }: GamepadOptions): ControllerStatus {
   const [status, setStatus] = useState<ControllerStatus>({ state: 'waiting' });
   const sample = useEffectEvent((input: GamepadInput, capture: GamepadCapture, pad: Gamepad | null, now: number, focused: boolean) => {
     const target = document.activeElement;
@@ -18,7 +19,7 @@ export function useGamepad({ onControl, repeat = [], enabled = true, bindings = 
       target.matches('input, textarea, select') || target.isContentEditable
     );
     const active = focused && !editing;
-    const actions = input.sample(pad, now, enabled && active && !onCapture, repeat, bindings);
+    const actions = input.sample(pad, now, enabled && active && !onCapture, repeat, bindings, repeatTiming);
     if (onCapture) {
       const captured = capture.sample(pad, active);
       if (captured) onCapture(captured);

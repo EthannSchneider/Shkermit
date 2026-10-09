@@ -23,6 +23,8 @@ export function handleTetrisController(control: GamepadControl, controller: Cont
   const player = game.mode === 'solo' ? 1 : coop.playerId;
   if (!player) return;
   if (control === 'left' || control === 'right' || control === 'down') sendAction(player, control);
-  if (control === 'up' || control === 'south') sendAction(player, 'rotate');
+  if (control === 'up') sendAction(player, 'rotate_ccw');
+  if (control === 'south') sendAction(player, 'rotate');
   if (control === 'west') sendAction(player, 'drop');
+  if (control === 'east') sendAction(player, 'hold');
 }

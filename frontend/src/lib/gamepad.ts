@@ -9,6 +9,7 @@ export type GamepadInputControl = GamepadControl
   | 'rightStickUp' | 'rightStickDown' | 'rightStickLeft' | 'rightStickRight';
 
 export type GamepadBindings = Record<GamepadControl, GamepadInputControl[]>;
+export type GamepadRepeatTiming = { delay: number; interval: number };
 
 export const DEFAULT_GAMEPAD_BINDINGS: GamepadBindings = {
   south: ['south'], east: ['east'], west: ['west'], north: ['north'],
@@ -29,8 +30,7 @@ const BUTTONS: Partial<Record<GamepadInputControl, number>> = {
   leftStick: 10, rightStick: 11, home: 16,
 };
 const DEAD_ZONE = 0.5;
-const REPEAT_DELAY = 250;
-const REPEAT_INTERVAL = 85;
+const DEFAULT_REPEAT_TIMING: GamepadRepeatTiming = { delay: 250, interval: 85 };
 const DIRECTIONS: GamepadControl[] = ['up', 'down', 'left', 'right'];
 const LEFT_STICK_DIRECTIONS: GamepadInputControl[] = ['stickUp', 'stickDown', 'stickLeft', 'stickRight'];
 
@@ -118,7 +118,7 @@ export class GamepadInput {
   private identity: string | null = null;
   private bindingsSignature: string | null = null;
 
-  sample(pad: Gamepad | null, now: number, enabled: boolean, repeat: readonly GamepadControl[] = [], bindings: GamepadBindings = DEFAULT_GAMEPAD_BINDINGS) {
+  sample(pad: Gamepad | null, now: number, enabled: boolean, repeat: readonly GamepadControl[] = [], bindings: GamepadBindings = DEFAULT_GAMEPAD_BINDINGS, timing: GamepadRepeatTiming = DEFAULT_REPEAT_TIMING) {
     const identity = pad ? `${pad.index}:${pad.id}` : null;
     if (identity !== this.identity) {
       this.held.clear();
@@ -140,11 +140,11 @@ export class GamepadInput {
         this.held.set(control, Infinity);
       } else if (nextRepeat === undefined) {
         actions.push(control);
-        this.held.set(control, now + REPEAT_DELAY);
+        this.held.set(control, now + timing.delay);
       } else if (repeat.includes(control) && now >= nextRepeat) {
         actions.push(control);
         // Emit at most once per frame, even after a long frame or tab switch.
-        this.held.set(control, now + REPEAT_INTERVAL);
+        this.held.set(control, now + timing.interval);
       }
     }
     return actions;

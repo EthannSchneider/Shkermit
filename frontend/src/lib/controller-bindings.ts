@@ -29,10 +29,10 @@ export const CONTROLLER_ACTIONS: Record<ControllerGame, ControllerAction[]> = {
   ],
   tetris: [
     { control: 'left', label: 'Move left' }, { control: 'right', label: 'Move right' },
-    { control: 'down', label: 'Soft drop' }, { control: 'up', label: 'Rotate (alternate)' },
-    { control: 'south', label: 'Rotate / start solo' }, { control: 'west', label: 'Hard drop / create co-op' },
+    { control: 'down', label: 'Soft drop' }, { control: 'up', label: 'Rotate counterclockwise' },
+    { control: 'south', label: 'Rotate clockwise / start solo' }, { control: 'west', label: 'Hard drop / create co-op' },
     { control: 'north', label: 'Frog Flush / create duel' }, { control: 'start', label: 'Pause / resume / start solo' },
-    { control: 'select', label: 'Restart' }, { control: 'east', label: 'Menu / cancel room' },
+    { control: 'select', label: 'Restart' }, { control: 'east', label: 'Hold / menu / cancel room' },
   ],
 };
 

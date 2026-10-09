@@ -3,6 +3,8 @@ import { randomInt } from "node:crypto";
 const ROWS = 20;
 const SOLO_COLS = 10;
 const COOP_COLS = 14;
+const LOCK_DELAY = 500;
+const MAX_LOCK_RESETS = 15;
 const PIECES = ["I", "O", "T", "S", "Z", "J", "L"];
 
 const BASE_SHAPES = {
@@ -51,6 +53,8 @@ function spawnPiece(type, player, cols, mode) {
     rotation: 0,
     x: Math.max(0, Math.min(cols - width, Math.round(center - width / 2))),
     y: type === "I" ? -1 : 0,
+    lockElapsed: 0,
+    lockResets: 0,
   };
 }
 
@@ -77,6 +81,20 @@ function getCollidingPieces(state, player) {
   return state.mode === "duel"
     ? state.active.filter((piece) => piece.player === player)
     : state.active;
+}
+
+function isGrounded(piece, state) {
+  return !isValid({ ...piece, y: piece.y + 1 }, getPlayerBoard(state, piece.player),
+    getCollidingPieces(state, piece.player), state.cols);
+}
+
+function updateLockAfterMove(previous, moved, state) {
+  const resets = previous.lockResets ?? 0;
+  const adjusted = moved.x !== previous.x || moved.rotation !== previous.rotation;
+  if (adjusted && isGrounded(previous, state) && resets < MAX_LOCK_RESETS) {
+    return { ...moved, lockElapsed: 0, lockResets: resets + 1 };
+  }
+  return isGrounded(moved, state) ? moved : { ...moved, lockElapsed: 0 };
 }
 
 function shuffleBag() {
@@ -107,6 +125,7 @@ function drawForPlayer(session, player) {
 }
 
 function startGame(session) {
+  session.gravityElapsed = 0;
   session.bag = [];
   session.duelSequence = [];
   session.duelDrawIndex = { 1: 0, 2: 0 };
@@ -135,6 +154,8 @@ function startGame(session) {
     best: 0,
     meter: 0,
     next: { 1: nextOne, 2: nextTwo },
+    hold: { 1: null, 2: null },
+    holdUsed: { 1: false, 2: false },
     playerStats: {
       1: { score: 0, lines: 0, combo: -1 },
       2: { score: 0, lines: 0, combo: -1 },
@@ -223,6 +244,7 @@ function lockPiece(session, source, player) {
     duelBoards,
     active,
     next,
+    holdUsed: { ...source.holdUsed, [player]: false },
     score: source.score + gained,
     lines: source.lines + fullRows.length,
     level: source.mode === "duel"
@@ -293,12 +315,29 @@ export function createTetrisGame(mode) {
 }
 
 export function moveTetrisPlayer(session, player, action) {
+  if (!["left", "right", "rotate", "rotate_ccw", "down", "drop", "hold"].includes(action)) return false;
   const source = session.state;
   if (source.status !== "playing" || (player !== 1 && player !== 2)) return false;
   const piece = source.active.find((item) => item.player === player);
   if (!piece) return false;
   const board = getPlayerBoard(source, player);
   const collisionPieces = getCollidingPieces(source, player);
+
+  if (action === "hold") {
+    if (source.holdUsed[player]) return false;
+    const held = source.hold[player];
+    const spawned = spawnPiece(held ?? source.next[player], player, source.cols, source.mode);
+    const state = {
+      ...source,
+      active: source.active.map((item) => item.player === player ? spawned : item),
+      hold: { ...source.hold, [player]: piece.type },
+      holdUsed: { ...source.holdUsed, [player]: true },
+      next: held ? source.next : { ...source.next, [player]: drawForPlayer(session, player) },
+    };
+    if (!isValid(spawned, board, collisionPieces, source.cols)) endGame(session, state, player);
+    else session.state = state;
+    return true;
+  }
 
   if (action === "drop") {
     let dropped = { ...piece };
@@ -318,15 +357,15 @@ export function moveTetrisPlayer(session, player, action) {
     return lockPiece(session, { ...source, active, score: source.score + distance * 2, playerStats }, player);
   }
 
-  if (action === "rotate") {
-    const rotated = { ...piece, rotation: (piece.rotation + 1) % 4 };
+  if (action === "rotate" || action === "rotate_ccw") {
+    const rotated = { ...piece, rotation: (piece.rotation + (action === "rotate" ? 1 : 3)) % 4 };
     const kicked = [0, -1, 1, -2, 2]
       .map((offset) => ({ ...rotated, x: rotated.x + offset }))
       .find((candidate) => isValid(candidate, board, collisionPieces, source.cols));
     if (!kicked) return false;
     session.state = {
       ...source,
-      active: source.active.map((item) => item.player === player ? kicked : item),
+      active: source.active.map((item) => item.player === player ? updateLockAfterMove(piece, kicked, source) : item),
     };
     return true;
   }
@@ -344,13 +383,13 @@ export function moveTetrisPlayer(session, player, action) {
     } : source.playerStats;
     session.state = {
       ...source,
-      active: source.active.map((item) => item.player === player ? moved : item),
+      active: source.active.map((item) => item.player === player ? updateLockAfterMove(piece, moved, source) : item),
       score: source.score + (action === "down" ? 1 : 0),
       playerStats,
     };
     return true;
   }
-  return action === "down" ? lockPiece(session, source, player) : false;
+  return false;
 }
 
 function activateFrogFlush(session) {
@@ -406,7 +445,7 @@ export function pauseTetrisGame(session, message) {
   return true;
 }
 
-export function tickTetrisGame(session) {
+export function tickTetrisGame(session, elapsed = 25) {
   if (session.state.status !== "playing") return false;
   const players = [...session.state.active]
     .sort((a, b) => (
@@ -415,11 +454,32 @@ export function tickTetrisGame(session) {
     ))
     .map(({ player }) => player);
   let changed = false;
+  const locked = new Set();
   players.forEach((player) => {
-    if (session.state.status === "playing") {
-      changed = moveTetrisPlayer(session, player, "down") || changed;
+    if (session.state.status !== "playing") return;
+    const state = session.state;
+    const piece = state.active.find((item) => item.player === player);
+    if (!piece) return;
+    const lockElapsed = isGrounded(piece, state) ? (piece.lockElapsed ?? 0) + elapsed : 0;
+    session.state = {
+      ...state,
+      active: state.active.map((item) => item.player === player ? { ...piece, lockElapsed } : item),
+    };
+    if (lockElapsed >= LOCK_DELAY) {
+      changed = lockPiece(session, session.state, player) || changed;
+      locked.add(player);
     }
   });
+  session.gravityElapsed += elapsed;
+  const speed = getTetrisDropDelay(session);
+  if (session.gravityElapsed >= speed) {
+    session.gravityElapsed %= speed;
+    players.forEach((player) => {
+      if (!locked.has(player) && session.state.status === "playing") {
+        changed = moveTetrisPlayer(session, player, "down") || changed;
+      }
+    });
+  }
   return changed;
 }
 

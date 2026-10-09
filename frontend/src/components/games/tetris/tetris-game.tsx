@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import shkermitImage from '../../../assets/img/3 TeteShkermit RTX.png';
 import { BoardGrid } from './board-grid';
-import { KEYBOARD_ACTION_LABELS, KEYBOARD_ACTIONS, PLAYER_COLORS } from './constants';
+import { KEYBOARD_ACTION_LABELS, KEYBOARD_ACTIONS, MOVEMENT_REPEAT, PLAYER_COLORS } from './constants';
 import { ControlPad } from './control-pad';
 import { MiniPiece } from './mini-piece';
 import type { PlayerId, TetrisGameController } from './types';
@@ -48,6 +48,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
     bindings: controllerSettings.bindings,
     onCapture: controllerSettings.onCapture,
     repeat: ['left', 'right', 'down'],
+    repeatTiming: MOVEMENT_REPEAT,
     onControl: (control) => handleTetrisController(control, controller),
   });
   const controllerHelp = (
@@ -362,16 +363,33 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
               {(game.mode !== 'solo' ? [1, 2] as PlayerId[] : [1] as PlayerId[]).map((player) => {
                 const isLocalPlayer = game.mode === 'solo' || coop.playerId === player;
                 return (
-                  <div key={player} className="flex items-center justify-between rounded-xl border bg-white/3.5 p-4" style={{ borderColor: `${PLAYER_COLORS[player]}33` }}>
+                  <div key={player} className="flex flex-col gap-4 rounded-xl border bg-white/3.5 p-4" style={{ borderColor: `${PLAYER_COLORS[player]}33` }}>
                     <div>
-                      <p className="text-[9px]" style={{ color: PLAYER_COLORS[player] }}>{game.mode !== 'solo' ? `${playerLabel(player)}${isLocalPlayer ? ' · YOU' : ''}` : 'NEXT PIECE'}</p>
+                      <p className="text-[9px]" style={{ color: PLAYER_COLORS[player] }}>{game.mode !== 'solo' ? `${playerLabel(player)}${isLocalPlayer ? ' · YOU' : ''}` : 'YOUR PIECES'}</p>
                       <p className="mt-2 text-[9px] leading-4 text-white/35">
                         {isLocalPlayer
-                          ? <>{keyBindings.left.label} {keyBindings.right.label} move<br />{keyBindings.rotate.label} rotate · {keyBindings.drop.label} drop</>
+                          ? <>{keyBindings.left.label} {keyBindings.right.label} move<br />{keyBindings.rotate.label} ↻ · {keyBindings.rotate_ccw.label} ↺ · {keyBindings.drop.label} drop</>
                           : <>REMOTE PLAYER<br />USES THEIR OWN KEYS</>}
                       </p>
                     </div>
-                    <MiniPiece type={game.next[player]} player={player} />
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-center">
+                        <p className="mb-2 text-[8px] text-white/40">NEXT</p>
+                        <MiniPiece type={game.next[player]} player={player} />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => sendAction(player, 'hold')}
+                        disabled={!isLocalPlayer || game.status !== 'playing' || game.holdUsed?.[player]}
+                        aria-label={`Hold piece for ${playerLabel(player)}`}
+                        className="rounded-lg border border-white/10 p-2 text-center transition enabled:hover:bg-white/10 disabled:opacity-40"
+                      >
+                        <p className="mb-2 text-[8px] text-lime-200/70">HOLD{isLocalPlayer ? ` · ${keyBindings.hold.label}` : ''}</p>
+                        {game.hold?.[player]
+                          ? <MiniPiece type={game.hold[player]!} player={player} label="Held piece" />
+                          : <span className="flex h-16 w-16 items-center justify-center text-lg text-white/25">—</span>}
+                      </button>
+                    </div>
                   </div>
                 );
               })}

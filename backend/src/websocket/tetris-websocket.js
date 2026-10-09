@@ -3,7 +3,6 @@ import { WebSocket, WebSocketServer } from "ws";
 import {
   commandTetrisGame,
   createTetrisGame,
-  getTetrisDropDelay,
   moveTetrisPlayer,
   pauseTetrisGame,
   tickTetrisGame,
@@ -12,14 +11,16 @@ import {
 const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const ROOM_CODE_LENGTH = 5;
 const MAX_MESSAGES_PER_SECOND = 120;
-const VALID_ACTIONS = new Set(["left", "right", "rotate", "down", "drop"]);
+const VALID_ACTIONS = new Set(["left", "right", "rotate", "rotate_ccw", "down", "drop", "hold"]);
 const VALID_COMMANDS = new Set(["toggle_pause", "restart", "frog_flush"]);
 const ACTION_COOLDOWNS_MS = {
   left: 20,
   right: 20,
   rotate: 75,
-  down: 30,
+  rotate_ccw: 75,
+  down: 20,
   drop: 100,
+  hold: 100,
 };
 const COMMAND_COOLDOWN_MS = 250;
 
@@ -102,7 +103,7 @@ export function createTetrisWebSocketServer(httpServer, {
 
   const startRoomGame = (room) => {
     room.game = createTetrisGame(room.gameMode);
-    room.nextDropAt = Date.now() + getTetrisDropDelay(room.game);
+    room.lastTickAt = Date.now();
     broadcastGame(room);
   };
 
@@ -222,7 +223,7 @@ export function createTetrisWebSocketServer(httpServer, {
           guestReconnectTimer: null,
           gameMode,
           game: null,
-          nextDropAt: null,
+          lastTickAt: null,
           lastState: null,
           scoreSaved: false,
         });
@@ -352,7 +353,7 @@ export function createTetrisWebSocketServer(httpServer, {
         if (isCoolingDown(client, `command:${message.command}`, COMMAND_COOLDOWN_MS, now)) return;
         if (commandTetrisGame(room.game, message.command)) {
           if (room.game.state.status === "playing") {
-            room.nextDropAt = now + getTetrisDropDelay(room.game);
+            room.lastTickAt = now;
           }
           broadcastGame(room);
         }
@@ -407,10 +408,10 @@ export function createTetrisWebSocketServer(httpServer, {
       if (!room.game
         || room.game.state.status !== "playing"
         || room.host?.readyState !== WebSocket.OPEN
-        || room.guest?.readyState !== WebSocket.OPEN
-        || now < room.nextDropAt) return;
-      if (tickTetrisGame(room.game)) broadcastGame(room);
-      room.nextDropAt = now + getTetrisDropDelay(room.game);
+        || room.guest?.readyState !== WebSocket.OPEN) return;
+      const elapsed = Math.min(50, now - room.lastTickAt);
+      room.lastTickAt = now;
+      if (tickTetrisGame(room.game, elapsed)) broadcastGame(room);
     });
   }, gameLoopMs);
   gameLoop.unref();

@@ -155,6 +155,33 @@ test("creates isolated duel boards controlled by the backend", async () => {
   guest.close();
 });
 
+test("broadcasts inverse rotations and each player's hold to both clients", async () => {
+  const { host, guest, state } = await createJoinedRoom("duel");
+  const original = state.active.find((piece) => piece.player === 2);
+  const rotated = nextMessage(host, "game_state");
+  const rotatedEcho = nextMessage(guest, "game_state");
+  send(guest, { type: "action", action: "rotate_ccw" });
+  assert.equal((await rotated).state.active.find((piece) => piece.player === 2).rotation, 3);
+  await rotatedEcho;
+  const restored = nextMessage(host, "game_state");
+  const restoredEcho = nextMessage(guest, "game_state");
+  send(guest, { type: "action", action: "rotate" });
+  assert.equal((await restored).state.active.find((piece) => piece.player === 2).rotation, 0);
+  await restoredEcho;
+  const heldHost = nextMessage(host, "game_state");
+  const heldGuest = nextMessage(guest, "game_state");
+  // A supplied player id cannot change whose piece is held.
+  send(guest, { type: "action", action: "hold", player: 1 });
+  const afterHold = (await heldHost).state;
+  assert.deepEqual((await heldGuest).state, afterHold);
+  assert.deepEqual(afterHold.hold, { 1: null, 2: original.type });
+  assert.deepEqual(afterHold.holdUsed, { 1: false, 2: true });
+  assert.equal(afterHold.active.find((piece) => piece.player === 2).type, state.next[2]);
+  assert.deepEqual(afterHold.active.find((piece) => piece.player === 1), state.active.find((piece) => piece.player === 1));
+  host.close();
+  guest.close();
+});
+
 test("rejects client-provided snapshots and pauses safely on disconnect", async () => {
   const { host, guest } = await createJoinedRoom();
   const rejected = nextMessage(host, "error");

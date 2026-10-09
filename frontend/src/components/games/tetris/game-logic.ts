@@ -1,4 +1,4 @@
-import { BASE_SHAPES, ROWS } from './constants';
+import { BASE_SHAPES, MAX_LOCK_RESETS, ROWS } from './constants';
 import type { ActivePiece, Cell, GameMode, GameState, PieceName, PlayerId } from './types';
 
 const rotateMatrix = (matrix: string[]) => {
@@ -41,6 +41,8 @@ export const spawnPiece = (
     rotation: 0,
     x: Math.max(0, Math.min(cols - width, Math.round(center - width / 2))),
     y: type === 'I' ? -1 : 0,
+    lockElapsed: 0,
+    lockResets: 0,
   };
 };
 
@@ -84,3 +86,38 @@ export const getPlayerBoard = (game: GameState, player: PlayerId) => (
 export const getCollidingPieces = (game: GameState, player: PlayerId) => (
   game.mode === 'duel' ? game.active.filter((piece) => piece.player === player) : game.active
 );
+
+export const isGrounded = (piece: ActivePiece, game: GameState) => !isValid(
+  { ...piece, y: piece.y + 1 },
+  getPlayerBoard(game, piece.player),
+  getCollidingPieces(game, piece.player),
+  game.cols,
+);
+
+export const updateLockAfterMove = (previous: ActivePiece, moved: ActivePiece, game: GameState) => {
+  const resets = previous.lockResets ?? 0;
+  const adjusted = moved.x !== previous.x || moved.rotation !== previous.rotation;
+  if (adjusted && isGrounded(previous, game) && resets < MAX_LOCK_RESETS) {
+    return { ...moved, lockElapsed: 0, lockResets: resets + 1 };
+  }
+  return isGrounded(moved, game) ? moved : { ...moved, lockElapsed: 0 };
+};
+
+export const advanceLock = (piece: ActivePiece, game: GameState, elapsed: number): ActivePiece => ({
+  ...piece,
+  lockElapsed: isGrounded(piece, game) ? (piece.lockElapsed ?? 0) + elapsed : 0,
+});
+
+export const holdPiece = (game: GameState, player: PlayerId, draw: () => PieceName): GameState | null => {
+  const piece = game.active.find((item) => item.player === player);
+  if (game.status !== 'playing' || !piece || game.holdUsed?.[player]) return null;
+  const held = game.hold?.[player] ?? null;
+  const spawned = spawnPiece(held ?? game.next[player], player, game.cols, game.mode);
+  return {
+    ...game,
+    active: game.active.map((item) => item.player === player ? spawned : item),
+    hold: { ...(game.hold ?? { 1: null, 2: null }), [player]: piece.type },
+    holdUsed: { ...(game.holdUsed ?? { 1: false, 2: false }), [player]: true },
+    next: held ? game.next : { ...game.next, [player]: draw() },
+  };
+};
