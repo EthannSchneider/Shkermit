@@ -95,6 +95,10 @@ export const isGrounded = (piece: ActivePiece, game: GameState) => !isValid(
 );
 
 export const updateLockAfterMove = (previous: ActivePiece, moved: ActivePiece, game: GameState) => {
+  // Successful translations cancel spin credit; blocked moves never reach here.
+  if (moved.rotation === previous.rotation && (moved.x !== previous.x || moved.y !== previous.y)) {
+    moved = { ...moved, lastRotationKick: undefined };
+  }
   const resets = previous.lockResets ?? 0;
   const adjusted = moved.x !== previous.x || moved.rotation !== previous.rotation;
   if (adjusted && isGrounded(previous, game) && resets < MAX_LOCK_RESETS) {

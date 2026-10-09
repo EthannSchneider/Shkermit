@@ -150,7 +150,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
             <div className="rounded-2xl border border-orange-300/25 bg-orange-300/5.5 p-7">
               <div className="mb-7 flex items-start justify-between"><span className="rounded-full border border-orange-200/20 px-3 py-1 text-[10px] text-orange-100/70">2 PLAYERS · VERSUS</span><span className="text-3xl">▦⚔▦</span></div>
               <h2 className="text-2xl text-orange-200">SWAMP DUEL</h2>
-              <p className="mt-3 text-xs leading-6 text-white/45">Race on separate boards. Clear 2, 3, or 4 lines to send 1, 2, or 4 garbage rows. First frog to top out loses.</p>
+              <p className="mt-3 text-xs leading-6 text-white/45">Race on separate boards. Clear lines or land T-spins to send garbage to your rival. First frog to top out loses.</p>
 
               {(coop.phase === 'idle' || coop.phase === 'error') && (
                 <button onClick={() => connectToCoop('create', '', 'duel')} className="mt-6 w-full rounded-lg bg-orange-200 px-4 py-3 text-[10px] text-[#1b1007] transition hover:bg-orange-100">CREATE A DUEL</button>
@@ -214,7 +214,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
           </button>
 
           <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3 text-[10px] text-white/35">
-            <span>7-BAG RANDOMIZER</span><span>GHOST PIECES</span><span>REAL-TIME MULTIPLAYER</span><span>GARBAGE ATTACKS</span><span>CUSTOM KEYS</span><span>TOUCH READY</span>
+            <span>7-BAG RANDOMIZER</span><span>GHOST PIECES</span><span>T-SPINS</span><span>REAL-TIME MULTIPLAYER</span><span>GARBAGE ATTACKS</span><span>CUSTOM KEYS</span><span>TOUCH READY</span>
           </div>
         </section>
 
@@ -300,7 +300,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
             {game.mode === 'duel' ? (
               <div className="col-span-3 rounded-xl border border-orange-300/15 bg-orange-300/4 p-4 xl:col-span-1">
                 <p className="text-[9px] text-orange-200">GARBAGE ATTACKS</p>
-                <p className="mt-3 text-[9px] leading-5 text-white/40">2 lines → 1 row<br />3 lines → 2 rows<br />4 lines → 4 rows</p>
+                <p className="mt-3 text-[9px] leading-5 text-white/40">2 / 3 / 4 lines → 1 / 2 / 4 rows<br />T-spin single / double / triple → 2 / 4 / 6 rows<br />Back-to-back clears → +1 row</p>
               </div>
             ) : (
               <div className="col-span-3 rounded-xl border border-lime-300/15 bg-lime-300/4 p-4 xl:col-span-1">

@@ -24,6 +24,7 @@ export type PlayerStats = {
   score: number;
   lines: number;
   combo: number;
+  backToBack?: boolean;
 };
 
 export type ActivePiece = {
@@ -34,6 +35,7 @@ export type ActivePiece = {
   y: number;
   lockElapsed?: number;
   lockResets?: number;
+  lastRotationKick?: number;
 };
 
 export type GameState = {
@@ -47,6 +49,7 @@ export type GameState = {
   lines: number;
   level: number;
   combo: number;
+  backToBack?: boolean;
   best: number;
   meter: number;
   next: Record<PlayerId, PieceName>;

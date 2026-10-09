@@ -49,6 +49,7 @@ import type {
 } from '../../components/games/tetris/types';
 import { useBestScore } from '../../hooks/use-best-score';
 import { useTetrisAudio } from '../../components/games/tetris/use-tetris-audio';
+import { detectTSpin, getRotationCandidates, scoreClear } from '../../components/games/tetris/tetris-rules';
 
 const getMessagePlayerNames = (value: unknown): Record<PlayerId, string | null> => {
   const names = value && typeof value === 'object'
@@ -200,14 +201,15 @@ function useTetrisGame() {
       lines: 0,
       level: 1,
       combo: -1,
+      backToBack: false,
       best: getSavedBest(mode),
       meter: 0,
       next: { 1: nextOne, 2: nextTwo },
       hold: { 1: null, 2: null },
       holdUsed: { 1: false, 2: false },
       playerStats: {
-        1: { score: 0, lines: 0, combo: -1 },
-        2: { score: 0, lines: 0, combo: -1 },
+        1: { score: 0, lines: 0, combo: -1, backToBack: false },
+        2: { score: 0, lines: 0, combo: -1, backToBack: false },
       },
       winner: null,
       message: mode === 'coop'
@@ -226,6 +228,7 @@ function useTetrisGame() {
     }
 
     let board = getPlayerBoard(source, player).map((row) => [...row]);
+    const spin = detectTSpin(piece, board);
     getCells(piece).forEach(({ x, y }) => {
       board[y][x] = { type: piece.type, owner: player };
     });
@@ -242,14 +245,15 @@ function useTetrisGame() {
       active = active.map((item) => {
         const lowestCell = Math.max(...getCells(item).map(({ y }) => y));
         const shift = fullRows.filter((row) => row > lowestCell).length;
-        return shift ? { ...item, y: item.y + shift } : item;
+        return shift ? { ...item, y: item.y + shift, lastRotationKick: undefined } : item;
       });
     }
 
     const previousCombo = source.mode === 'duel' ? source.playerStats[player].combo : source.combo;
-    const combo = fullRows.length ? previousCombo + 1 : -1;
-    const scoreTable = [0, 100, 300, 500, 800];
-    const gained = Math.round(((scoreTable[fullRows.length] || fullRows.length * 250) + Math.max(0, combo) * 50) * source.level);
+    const previousBackToBack = source.mode === 'duel' ? source.playerStats[player].backToBack : source.backToBack;
+    const { combo, backToBack, gained, attackRows, label } = scoreClear(
+      spin, fullRows.length, source.level, previousCombo, previousBackToBack,
+    );
     const playerLines = source.playerStats[player].lines + fullRows.length;
     const nextType = source.next[player];
     const spawned = spawnPiece(nextType, player, source.cols, source.mode);
@@ -260,6 +264,7 @@ function useTetrisGame() {
         score: source.playerStats[player].score + gained,
         lines: playerLines,
         combo,
+        backToBack,
       },
     };
     let duelBoards = source.duelBoards;
@@ -278,21 +283,21 @@ function useTetrisGame() {
         ? Math.floor(Math.max(playerStats[1].lines, playerStats[2].lines) / 10) + 1
         : Math.floor((source.lines + fullRows.length) / 10) + 1,
       combo,
+      backToBack,
       meter: source.mode === 'duel' ? 0 : Math.min(100, source.meter + fullRows.length * 18),
       playerStats,
-      message: source.mode === 'duel' && fullRows.length >= 2
+      message: label ?? (source.mode === 'duel' && fullRows.length >= 2
         ? `PLAYER ${player} ATTACKS!`
         : fullRows.length >= 4
         ? 'SHKERMIT! Four-line clear!'
         : fullRows.length > 0
           ? `${fullRows.length} line${fullRows.length > 1 ? 's' : ''} cleared${combo > 0 ? ` • ${combo + 1}x combo` : ''}`
-          : source.message,
+          : source.message),
     };
 
     if (source.mode === 'solo') playLockSound(fullRows.length);
 
     if (source.mode === 'duel') {
-      const attackRows = [0, 0, 1, 2, 4][fullRows.length] || Math.max(0, fullRows.length - 1);
       if (attackRows > 0) {
         const opponent: PlayerId = player === 1 ? 2 : 1;
         const opponentBoard = data.duelBoards![opponent];
@@ -308,9 +313,9 @@ function useTetrisGame() {
           [opponent]: [...opponentBoard.slice(attackRows), ...garbageRows],
         };
         data.active = data.active.map((item) => item.player === opponent
-          ? { ...item, y: item.y - attackRows }
+          ? { ...item, y: item.y - attackRows, lastRotationKick: undefined }
           : item);
-        data.message = `PLAYER ${player} SENT ${attackRows} GARBAGE ROW${attackRows > 1 ? 'S' : ''}!`;
+        data.message = `${label ? `${label} • ` : ''}PLAYER ${player} SENT ${attackRows} GARBAGE ROW${attackRows > 1 ? 'S' : ''}!`;
         if (overflow) {
           endGame(data, opponent);
           return;
@@ -325,7 +330,7 @@ function useTetrisGame() {
     }
 
     data.active = [...data.active, spawned];
-    if (data.meter >= 100) data.message = 'FROG FLUSH READY';
+    if (data.meter >= 100) data.message = label ? `${data.message} • FROG FLUSH READY` : 'FROG FLUSH READY';
     publish(data);
   }, [drawDuelType, drawType, endGame, playLockSound, publish]);
 
@@ -350,7 +355,7 @@ function useTetrisGame() {
       let dropped = { ...piece };
       let distance = 0;
       while (isValid({ ...dropped, y: dropped.y + 1 }, board, collisionPieces, source.cols)) {
-        dropped = { ...dropped, y: dropped.y + 1 };
+        dropped = { ...dropped, y: dropped.y + 1, lastRotationKick: undefined };
         distance += 1;
       }
       const active = source.active.map((item) => item.player === player ? dropped : item);
@@ -363,10 +368,7 @@ function useTetrisGame() {
     }
 
     if (action === 'rotate' || action === 'rotate_ccw') {
-      const rotated = { ...piece, rotation: (piece.rotation + (action === 'rotate' ? 1 : 3)) % 4 };
-      const kicks = [0, -1, 1, -2, 2];
-      const kicked = kicks
-        .map((offset) => ({ ...rotated, x: rotated.x + offset }))
+      const kicked = getRotationCandidates(piece, action === 'rotate')
         .find((candidate) => isValid(candidate, board, collisionPieces, source.cols));
       if (kicked) publish({ ...source, active: source.active.map((item) => item.player === player ? updateLockAfterMove(piece, kicked, source) : item) });
       return;
@@ -404,7 +406,7 @@ function useTetrisGame() {
     const active = source.active.map((piece) => {
       const lowestCell = Math.max(...getCells(piece).map(({ y }) => y));
       const shift = occupiedRows.filter((row) => row > lowestCell).length;
-      return shift ? { ...piece, y: piece.y + shift } : piece;
+      return shift ? { ...piece, y: piece.y + shift, lastRotationKick: undefined } : piece;
     });
     publish({
       ...source,
