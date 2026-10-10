@@ -34,6 +34,8 @@ Shkermit Stacks includes online two-player co-op and duel modes. The first playe
 
 All three playable games support controllers that the browser recognizes with a standard gamepad layout. Connect a controller over USB or Bluetooth and press a button while the game page is focused. Each game shows connection status and its controls. If several controllers are connected, the game keeps using the first supported controller until it disconnects. Controller input is suppressed while the page is unfocused or a text field is being edited; release held buttons before using them again. Keyboard, mouse, and touch controls remain available.
 
+Verified administrators have a discreet **auto** button next to the Tetris sound control. It toggles automatic play using legal movement, rotation, and hard-drop actions, with the next piece considered when choosing a placement. From the menu it starts a solo game; during co-op or a duel it controls only the administrator's own piece. Automatic play waits while paused and stops on game over, restart, or leaving the game.
+
 Choose **Customize controls** on any game page to assign controller inputs with a selector or **Press to bind**. Buttons, bumpers, triggers, stick presses, and directions on either stick are available. Release all inputs before a capture, then press or move the input you want. Assigning an input already used by another action swaps those bindings. Changes save separately for each game in local storage, and the controls displayed on the page update immediately. **Reset controller defaults** restores that game's original bindings. Snake and Stacks pause when settings open; resume when you are ready to play. The table below lists the defaults.
 
 | Game | Controller controls (Xbox / PlayStation labels) |

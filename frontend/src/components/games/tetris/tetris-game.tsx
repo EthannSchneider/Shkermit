@@ -37,7 +37,19 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
     returnToMenu,
     soundEnabled,
     toggleSound,
+    canAutoPlay,
+    autoEnabled,
+    toggleAuto,
   } = controller;
+  const autoButton = canAutoPlay ? (
+    <button
+      type="button"
+      onClick={toggleAuto}
+      aria-pressed={autoEnabled}
+      title={autoEnabled ? 'Stop automatic play' : 'Play automatically'}
+      className={`rounded-lg border px-3 py-2 text-[9px] transition ${autoEnabled ? 'border-lime-300/50 bg-lime-300/15 text-lime-200' : 'border-white/10 bg-white/4 text-white/35 hover:bg-white/10 hover:text-white/75'}`}
+    >auto</button>
+  ) : null;
   const playerLabel = (player: PlayerId) => coop.playerNames[player] || `PLAYER ${player}`;
   const gameMessage = ([1, 2] as PlayerId[]).reduce(
     (message, player) => message.split(`PLAYER ${player}`).join(playerLabel(player)),
@@ -84,9 +96,12 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
         <section className="relative mx-auto max-w-6xl">
           <div className="mb-10 flex items-center justify-between gap-4">
             <a href="/games" className="inline-flex items-center gap-2 text-xs text-lime-200/60 transition hover:text-lime-200">← BACK TO THE ARCADE</a>
-            <button type="button" onClick={toggleSound} aria-pressed={soundEnabled} className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[9px] text-white/50 transition hover:bg-white/10 hover:text-white/75">
-              {soundEnabled ? '🔊 SOUND ON' : '🔇 SOUND OFF'}
-            </button>
+            <div className="flex items-center gap-2">
+              {autoButton}
+              <button type="button" onClick={toggleSound} aria-pressed={soundEnabled} className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[9px] text-white/50 transition hover:bg-white/10 hover:text-white/75">
+                {soundEnabled ? '🔊 SOUND ON' : '🔇 SOUND OFF'}
+              </button>
+            </div>
           </div>
           <div className="mb-12 max-w-3xl">
             <p className="mb-4 text-xs tracking-[0.35em] text-lime-300">SHKERMIT ARCADE / 03</p>
@@ -266,6 +281,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
             <h1 className="text-2xl text-lime-300 sm:text-4xl">SHKERMIT STACKS</h1>
           </div>
           <div className="flex items-center gap-2 text-[9px]">
+            {autoButton}
             <button type="button" onClick={toggleSound} aria-pressed={soundEnabled} aria-label={soundEnabled ? 'Mute Tetris sound' : 'Enable Tetris sound'} className="mr-2 rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[9px] text-white/50 transition hover:bg-white/10 hover:text-white/75">
               {soundEnabled ? '🔊' : '🔇'}
             </button>

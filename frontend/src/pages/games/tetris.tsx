@@ -50,6 +50,8 @@ import type {
 import { useBestScore } from '../../hooks/use-best-score';
 import { useTetrisAudio } from '../../components/games/tetris/use-tetris-audio';
 import { detectTSpin, getRotationCandidates, scoreClear } from '../../components/games/tetris/tetris-rules';
+import { planAutoPlay } from '../../components/games/tetris/auto-player';
+import { useAuth } from '../../context/auth-context';
 
 const getMessagePlayerNames = (value: unknown): Record<PlayerId, string | null> => {
   const names = value && typeof value === 'object'
@@ -64,7 +66,11 @@ const getMessagePlayerNames = (value: unknown): Record<PlayerId, string | null> 
 };
 
 function useTetrisGame() {
+  const { user } = useAuth();
+  const canAutoPlay = Boolean(user?.isAdmin && user.emailVerified && !user.isSuspended);
+  const [autoUserId, setAutoUserId] = useState<number | null>(null);
   const [game, setGame] = useState<GameState>(initialGame);
+  const autoEnabled = canAutoPlay && autoUserId === user?.id && game.status !== 'ready' && game.status !== 'gameover';
   const [coop, setCoop] = useState<CoopState>(initialCoop);
   const soloBest = useBestScore('tetris', 'solo', getSavedBest('solo'));
   const coopBest = useBestScore('tetris', 'coop', getSavedBest('coop'), false);
@@ -93,6 +99,7 @@ function useTetrisGame() {
   }, []);
 
   const publish = useCallback((nextGame: GameState) => {
+    if (nextGame.status === 'gameover' || nextGame.status === 'ready') setAutoUserId(null);
     gameRef.current = nextGame;
     setGame(nextGame);
     if (nextGame.mode !== 'solo' && multiplayerSessionRef.current) {
@@ -178,6 +185,7 @@ function useTetrisGame() {
   }, [publish]);
 
   const startGame = useCallback((mode: GameMode = gameRef.current.mode) => {
+    setAutoUserId(null);
     gravityElapsedRef.current = 0;
     bagRef.current = [];
     duelSequenceRef.current = [];
@@ -442,6 +450,7 @@ function useTetrisGame() {
     resumeToken = '',
     restoredGame?: GameState,
   ) => {
+    setAutoUserId(null);
     closeCoopSocket(kind !== 'resume');
     if (kind !== 'resume') {
       multiplayerSessionRef.current = null;
@@ -494,6 +503,7 @@ function useTetrisGame() {
   }, [closeCoopSocket]);
 
   const leaveCoop = useCallback(() => {
+    setAutoUserId(null);
     closeCoopSocket(true);
     multiplayerSessionRef.current = null;
     clearMultiplayerSession();
@@ -523,6 +533,7 @@ function useTetrisGame() {
   }, [movePlayer, sendSocketMessage]);
 
   const sendCommand = useCallback((command: GameCommand) => {
+    if (command === 'restart') setAutoUserId(null);
     if (gameRef.current.mode === 'solo') {
       if (command === 'toggle_pause') togglePause();
       if (command === 'restart') startGame('solo');
@@ -531,6 +542,31 @@ function useTetrisGame() {
     }
     sendSocketMessage({ type: 'command', command });
   }, [activateFrogFlush, sendSocketMessage, startGame, togglePause]);
+
+  const toggleAuto = useCallback(() => {
+    if (!canAutoPlay || !user) return;
+    if (autoEnabled) {
+      setAutoUserId(null);
+      return;
+    }
+    const source = gameRef.current;
+    if (source.status === 'ready') startSolo();
+    if (source.status === 'gameover') sendCommand('restart');
+    setAutoUserId(user.id);
+  }, [autoEnabled, canAutoPlay, sendCommand, startSolo, user]);
+
+  useEffect(() => {
+    if (!autoEnabled || game.status !== 'playing') return;
+    const timer = window.setInterval(() => {
+      const source = gameRef.current;
+      const player = source.mode === 'solo' ? 1 : localPlayerRef.current;
+      if (source.status !== 'playing' || !player || bindingAction) return;
+      if (source.mode !== 'solo' && socketRef.current?.readyState !== WebSocket.OPEN) return;
+      const plan = planAutoPlay(source, player);
+      if (plan?.length) sendAction(player, plan[0]);
+    }, 120);
+    return () => window.clearInterval(timer);
+  }, [autoEnabled, bindingAction, game.status, sendAction]);
 
   useEffect(() => {
     socketMessageHandlerRef.current = (message) => {
@@ -856,6 +892,7 @@ function useTetrisGame() {
   }, [game]);
 
   const returnToMenu = useCallback(() => {
+    setAutoUserId(null);
     const source = gameRef.current;
     if (source.mode !== 'solo') {
       leaveCoop();
@@ -887,6 +924,9 @@ function useTetrisGame() {
     returnToMenu,
     soundEnabled,
     toggleSound,
+    canAutoPlay,
+    autoEnabled,
+    toggleAuto,
   };
 }
 

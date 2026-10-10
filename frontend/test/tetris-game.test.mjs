@@ -16,10 +16,14 @@ const constantsUrl = await moduleUrl('../src/components/games/tetris/constants.t
 const logicUrl = await moduleUrl('../src/components/games/tetris/game-logic.ts', { './constants': constantsUrl });
 const storageUrl = await moduleUrl('../src/components/games/tetris/storage.ts', { './constants': constantsUrl, './game-logic': logicUrl });
 const rulesUrl = await moduleUrl('../src/components/games/tetris/tetris-rules.ts');
+const autoUrl = await moduleUrl('../src/components/games/tetris/auto-player.ts', {
+  './constants': constantsUrl, './game-logic': logicUrl, './tetris-rules': rulesUrl,
+});
+const { planAutoPlay } = await import(autoUrl);
 const { detectTSpin, getRotationCandidates, scoreClear } = await import(rulesUrl);
 const serverRules = await import('../../backend/src/services/tetris-rules.js');
 const { LOCK_DELAY, DEFAULT_BINDINGS } = await import(constantsUrl);
-const { advanceLock, holdPiece, isGrounded, updateLockAfterMove, spawnPiece, isValid, makeBoard } = await import(logicUrl);
+const { advanceLock, getCells, getGhost, holdPiece, isGrounded, updateLockAfterMove, spawnPiece, isValid, makeBoard, getPlayerBoard, getCollidingPieces } = await import(logicUrl);
 const { initialGame, getSavedBindings } = await import(storageUrl);
 
 function solo() {
@@ -28,6 +32,96 @@ function solo() {
   game.active = [{ ...spawnPiece('O', 1, 10, 'solo'), x: 3, y: 18 }];
   return game;
 }
+
+function executeAutoAction(game, player, action) {
+  const previous = game.active.find((piece) => piece.player === player);
+  const board = getPlayerBoard(game, player);
+  const active = getCollidingPieces(game, player);
+  let moved;
+  if (action === 'drop') moved = getGhost(previous, board, active, game.cols);
+  else if (action === 'rotate' || action === 'rotate_ccw') {
+    moved = getRotationCandidates(previous, action === 'rotate').find((candidate) => isValid(candidate, board, active, game.cols));
+  } else moved = { ...previous, x: previous.x + (action === 'left' ? -1 : action === 'right' ? 1 : 0), y: previous.y + (action === 'down' ? 1 : 0) };
+  assert.ok(moved, `Auto action ${action} must have a legal rotation`);
+  assert.equal(isValid(moved, board, active, game.cols), true, `Auto action ${action} must be legal`);
+  game.active = game.active.map((piece) => piece.player === player ? moved : piece);
+  return moved;
+}
+
+test('auto rotates an I into a four-line gap using legal moves without modifying the input', () => {
+  const game = initialGame();
+  game.status = 'playing';
+  game.active = [spawnPiece('I', 1, 10, 'solo')];
+  for (let y = 16; y < 20; y += 1) game.board[y] = Array.from({ length: 10 }, (_, x) => x === 0 ? null : { type: 'G', owner: 1 });
+  const before = structuredClone(game);
+  const plan = planAutoPlay(game, 1);
+  assert.deepEqual(game, before);
+  assert.equal(plan.at(-1), 'drop');
+  assert.ok(plan.includes('rotate') || plan.includes('rotate_ccw'));
+  for (const action of plan) executeAutoAction(game, 1, action);
+  for (const { x, y } of getCells(game.active[0])) game.board[y][x] = { type: 'I', owner: 1 };
+  assert.equal(game.board.filter((row) => row.every(Boolean)).length, 4);
+});
+
+test('auto only plans for a playing game with a safe active piece', () => {
+  const game = solo();
+  for (const status of ['ready', 'paused', 'gameover']) assert.equal(planAutoPlay({ ...game, status }, 1), null);
+  assert.equal(planAutoPlay(game, 2), null);
+  game.active = [spawnPiece('T', 1, 10, 'solo')];
+  game.board = Array.from({ length: 20 }, () => Array.from({ length: 10 }, () => ({ type: 'G', owner: 1 })));
+  assert.equal(planAutoPlay(game, 1), null);
+});
+
+test('auto respects the partner piece in co-op and uses player two’s own board in a duel', () => {
+  for (const mode of ['coop', 'duel']) {
+    const game = initialGame(mode);
+    game.status = 'playing';
+    game.active = [spawnPiece('T', 1, game.cols, mode), spawnPiece('I', 2, game.cols, mode)];
+    const originalPlayerOne = structuredClone(game.active[0]);
+    const board = getPlayerBoard(game, 2);
+    for (let y = 16; y < 20; y += 1) board[y] = Array.from({ length: game.cols }, (_, x) => x === game.cols - 1 ? null : { type: 'G', owner: 1 });
+    if (mode === 'duel') game.duelBoards[1] = Array.from({ length: 20 }, () => Array.from({ length: 10 }, () => ({ type: 'G', owner: 1 })));
+    const plan = planAutoPlay(game, 2);
+    assert.ok(plan);
+    for (const action of plan) executeAutoAction(game, 2, action);
+    assert.deepEqual(game.active[0], originalPlayerOne);
+    const cells = getCells(game.active[1]);
+    assert.equal(cells.every(({ x, y }) => x === game.cols - 1 && y >= 16), true);
+  }
+});
+
+test('auto continuously replans after movement and gravity and clears a sequence of pieces', () => {
+  const game = initialGame();
+  game.status = 'playing';
+  const types = ['T', 'Z', 'I', 'L', 'O', 'J', 'S', 'O', 'L', 'S', 'T', 'I', 'Z', 'J'];
+  let lines = 0;
+  for (let index = 0; index < 70; index += 1) {
+    game.active = [spawnPiece(types[index % types.length], 1, 10, 'solo')];
+    game.next[1] = types[(index + 1) % types.length];
+    let landed = false;
+    for (let step = 0; step < 60; step += 1) {
+      const plan = planAutoPlay(game, 1);
+      assert.ok(plan, `Piece ${index} must have a safe plan`);
+      const action = plan[0];
+      const moved = executeAutoAction(game, 1, action);
+      if (action === 'drop') {
+        for (const { x, y } of getCells(moved)) {
+          assert.ok(y >= 0, `Piece ${index} must fit below the ceiling`);
+          game.board[y][x] = { type: moved.type, owner: 1 };
+        }
+        const remaining = game.board.filter((row) => !row.every(Boolean));
+        lines += 20 - remaining.length;
+        while (remaining.length < 20) remaining.unshift(Array(10).fill(null));
+        game.board = remaining;
+        landed = true;
+        break;
+      }
+      if (step % 3 === 2 && isValid({ ...moved, y: moved.y + 1 }, game.board, game.active, 10)) executeAutoAction(game, 1, 'down');
+    }
+    assert.equal(landed, true, `Piece ${index} must drop without looping`);
+  }
+  assert.ok(lines >= 20, `Expected at least 20 lines; cleared ${lines}`);
+});
 
 test('solo gives 500 ms on contact and restarts the delay after a grounded move', () => {
   const game = solo();

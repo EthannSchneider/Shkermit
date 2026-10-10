@@ -110,5 +110,8 @@ export type TetrisGameController = {
   returnToMenu: () => void;
   soundEnabled: boolean;
   toggleSound: () => void;
+  canAutoPlay: boolean;
+  autoEnabled: boolean;
+  toggleAuto: () => void;
 };
 import type { Dispatch, SetStateAction } from 'react';
