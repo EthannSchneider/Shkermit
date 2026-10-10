@@ -45,6 +45,23 @@ function makeBoard(cols) {
   return Array.from({ length: ROWS }, () => Array(cols).fill(null));
 }
 
+export const getTetrisBoardRows = (level) => ROWS + Math.ceil(ROWS * Math.max(0, level - 31) * 3 / 100);
+
+function growGameBoard(state) {
+  const extra = getTetrisBoardRows(state.level) - state.board.length;
+  if (extra <= 0) return state;
+  const grow = (board) => [
+    ...Array.from({ length: extra }, () => Array(state.cols).fill(null)),
+    ...board,
+  ];
+  return {
+    ...state,
+    board: grow(state.board),
+    duelBoards: state.duelBoards ? { 1: grow(state.duelBoards[1]), 2: grow(state.duelBoards[2]) } : null,
+    active: state.active.map((piece) => ({ ...piece, y: piece.y + extra })),
+  };
+}
+
 function spawnPiece(type, player, cols, mode) {
   const width = getShape(type, 0).length;
   const center = mode === "coop" ? cols * (player === 1 ? 0.28 : 0.72) : cols / 2;
@@ -68,7 +85,7 @@ function isValid(piece, board, active, cols) {
   );
 
   return getCells(piece).every(({ x, y }) => {
-    if (x < 0 || x >= cols || y >= ROWS) return false;
+    if (x < 0 || x >= cols || y >= board.length) return false;
     if (y >= 0 && board[y][x]) return false;
     return !otherCells.has(`${x}:${y}`);
   });
@@ -211,7 +228,7 @@ function lockPiece(session, source, player) {
     if (row.every(Boolean)) fullRows.push(rowIndex);
   });
   board = board.filter((_, rowIndex) => !fullRows.includes(rowIndex));
-  while (board.length < ROWS) board.unshift(Array(source.cols).fill(null));
+  while (board.length < getPlayerBoard(source, player).length) board.unshift(Array(source.cols).fill(null));
 
   let active = source.active.filter((item) => item.player !== player);
   if (fullRows.length && source.mode !== "duel") {
@@ -247,7 +264,7 @@ function lockPiece(session, source, player) {
   let duelBoards = source.duelBoards;
   if (source.mode === "duel") duelBoards = { ...source.duelBoards, [player]: board };
 
-  const data = {
+  let data = {
     ...source,
     board: source.mode === "duel" ? source.board : board,
     duelBoards,
@@ -271,6 +288,9 @@ function lockPiece(session, source, player) {
           ? `${fullRows.length} line${fullRows.length > 1 ? "s" : ""} cleared${combo > 0 ? ` • ${combo + 1}x combo` : ""}`
           : source.message),
   };
+
+  data = growGameBoard(data);
+  board = getPlayerBoard(data, player);
 
   if (source.mode === "duel") {
     if (attackRows > 0) {
@@ -409,7 +429,7 @@ function activateFrogFlush(session) {
   if (!occupiedRows.length) return false;
 
   const board = source.board.filter((_, index) => !occupiedRows.includes(index));
-  while (board.length < ROWS) board.unshift(Array(source.cols).fill(null));
+  while (board.length < source.board.length) board.unshift(Array(source.cols).fill(null));
   const active = source.active.map((piece) => {
     const lowestCell = Math.max(...getCells(piece).map(({ y }) => y));
     const shift = occupiedRows.filter((row) => row > lowestCell).length;
@@ -478,7 +498,7 @@ export function tickTetrisGame(session, elapsed = 25) {
   });
   session.gravityElapsed += elapsed;
   const speed = getTetrisDropDelay(session);
-  const steps = speed > 0 ? Math.min(ROWS, Math.floor(session.gravityElapsed / speed)) : ROWS;
+  const steps = speed > 0 ? Math.min(session.state.board.length, Math.floor(session.gravityElapsed / speed)) : session.state.board.length;
   session.gravityElapsed = speed > 0 ? session.gravityElapsed % speed : 0;
   for (let step = 0; step < steps; step += 1) {
     let moved = false;

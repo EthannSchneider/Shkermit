@@ -26,8 +26,64 @@ const { planAutoPlay, shouldAutoFlush } = await import(autoUrl);
 const { detectTSpin, getRotationCandidates, scoreClear } = await import(rulesUrl);
 const serverRules = await import('../../backend/src/services/tetris-rules.js');
 const { LOCK_DELAY, DEFAULT_BINDINGS } = await import(constantsUrl);
-const { advanceLock, getCells, getGhost, holdPiece, isGrounded, updateLockAfterMove, spawnPiece, isValid, makeBoard, getPlayerBoard, getCollidingPieces } = await import(logicUrl);
-const { initialGame, getSavedBindings } = await import(storageUrl);
+const { advanceLock, getCells, getGhost, holdPiece, isGrounded, updateLockAfterMove, spawnPiece, isValid, makeBoard, getPlayerBoard, getCollidingPieces, getBoardRows, growGameBoard } = await import(logicUrl);
+const { initialGame, getSavedBindings, isGameState } = await import(storageUrl);
+const { getTetrisBoardRows } = await import('../../backend/src/services/tetris-game.service.js');
+
+test('board growth adds whole rows starting at level 32 and agrees with the server', () => {
+  for (const [level, rows] of [[1, 20], [31, 20], [32, 21], [33, 22], [34, 22], [36, 23], [100, 62]]) {
+    assert.equal(getBoardRows(level), rows);
+    assert.equal(getTetrisBoardRows(level), rows);
+  }
+});
+
+for (const mode of ['solo', 'coop', 'duel']) {
+  test(`${mode}: growth preserves the stack and active pieces relative to the floor`, () => {
+    const game = initialGame(mode);
+    game.status = 'playing';
+    game.level = 36;
+    game.active = [{ ...spawnPiece('O', 1, game.cols, mode), y: 18 }];
+    getPlayerBoard(game, 1)[19][0] = { type: 'G', owner: 1 };
+    const before = structuredClone(game);
+    const grown = growGameBoard(game);
+    assert.deepEqual(game, before);
+    assert.equal(grown.board.length, 23);
+    assert.equal(getPlayerBoard(grown, 1)[22][0].type, 'G');
+    assert.equal(grown.active[0].y, 21);
+    assert.equal(isGrounded(grown.active[0], grown), true);
+    assert.equal(getPlayerBoard(grown, 1).slice(0, 3).flat().some(Boolean), false);
+    assert.ok(getPlayerBoard(grown, 1).every((row) => row.length === game.cols));
+    assert.equal(growGameBoard(grown), grown);
+    const airborne = spawnPiece('O', 1, game.cols, mode);
+    assert.equal(getGhost(airborne, getPlayerBoard(grown, 1), [], game.cols).y, 21);
+    assert.equal(isValid({ ...airborne, y: 22 }, getPlayerBoard(grown, 1), [], game.cols), false);
+    if (mode !== 'solo') {
+      assert.equal(isGameState(grown), true);
+      assert.equal(isGameState({ ...grown, board: grown.board.slice(1) }), false);
+    }
+  });
+}
+
+test('autopilot clears rows below the original floor and flush uses the expanded height', () => {
+  const game = growGameBoard({ ...initialGame(), level: 36, status: 'playing' });
+  game.active = [{ ...spawnPiece('I', 1, game.cols, 'solo'), rotation: 1, x: -2 }];
+  game.next[1] = 'O';
+  for (let y = 19; y < 23; y += 1) {
+    game.board[y] = Array.from({ length: game.cols }, (_, x) => x === 0 ? null : { type: 'G', owner: 1 });
+  }
+  const plan = planAutoPlay(game, 1);
+  assert.ok(plan);
+  for (const action of plan) executeAutoAction(game, 1, action);
+  for (const { x, y } of getCells(game.active[0])) game.board[y][x] = { type: 'I', owner: 1 };
+  assert.equal(game.board.filter((row) => row.every(Boolean)).length, 4);
+  game.board = game.board.map((row) => row.map(() => null));
+  game.meter = 100;
+  const settings = { ...DEFAULT_AUTO_SETTINGS, autoFlush: true };
+  game.board[14][0] = { type: 'G', owner: 1 };
+  assert.equal(shouldAutoFlush(game, settings), false);
+  game.board[13][0] = { type: 'G', owner: 1 };
+  assert.equal(shouldAutoFlush(game, settings), true);
+});
 
 function solo() {
   const game = initialGame();

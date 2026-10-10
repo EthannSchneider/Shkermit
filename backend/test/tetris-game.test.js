@@ -11,6 +11,62 @@ function groundedGame(mode = "duel") {
 const piece = (game, player = 1) => game.state.active.find((item) => item.player === player);
 const board = (game, player = 1) => game.state.mode === "duel" ? game.state.duelBoards[player] : game.state.board;
 
+for (const mode of ["coop", "duel"]) {
+  test(`${mode}: reaching level 32 adds playable space with the same width`, () => {
+    const game = groundedGame(mode);
+    game.state.level = 31;
+    game.state.lines = 309;
+    game.state.playerStats[1].lines = 309;
+    board(game)[19] = Array.from({ length: game.state.cols }, (_, x) => (
+      x === 3 || x === 4 ? null : { type: "G", owner: 1 }
+    ));
+    if (mode === "duel") board(game, 2)[19][0] = { type: "G", owner: 2 };
+    const otherY = piece(game, 2).y;
+    moveTetrisPlayer(game, 1, "drop");
+    assert.equal(game.state.level, 32);
+    assert.equal(game.state.board.length, 21);
+    assert.equal(board(game).length, 21);
+    assert.equal(board(game)[20][3].type, "O");
+    assert.ok(board(game).every((row) => row.length === game.state.cols));
+    assert.ok(piece(game).y <= 0, 'new pieces still spawn at the top');
+    assert.equal(piece(game, 2).y, otherY + (mode === "duel" ? 1 : 2));
+    if (mode === "duel") {
+      assert.equal(board(game, 2).length, 21);
+      assert.equal(board(game, 2)[20][0].owner, 2);
+    }
+
+    // Subsequent clears and Frog Flush must retain the added rows.
+    board(game)[20] = Array.from({ length: game.state.cols }, (_, x) => (
+      x === 3 || x === 4 ? null : { type: "G", owner: 1 }
+    ));
+    game.state.active[0] = { type: "O", player: 1, rotation: 0, x: 3, y: 19 };
+    moveTetrisPlayer(game, 1, "drop");
+    assert.equal(board(game).length, 21);
+    if (mode === "coop") {
+      game.state.meter = 100;
+      commandTetrisGame(game, "frog_flush");
+      assert.equal(board(game).length, 21);
+    }
+    commandTetrisGame(game, "restart");
+    assert.equal(board(game).length, 20);
+  });
+
+  test(`${mode}: instant gravity reaches the bottom of an expanded board`, () => {
+    const game = createTetrisGame(mode);
+    game.state.level = 100;
+    game.state.board = Array.from({ length: 62 }, () => Array(game.state.cols).fill(null));
+    if (mode === "duel") game.state.duelBoards = structuredClone({ 1: game.state.board, 2: game.state.board });
+    game.state.active = [1, 2].map((player) => ({
+      type: "O", player, rotation: 0, x: player === 1 ? 2 : 8, y: 0,
+      lockElapsed: 0, lockResets: 0,
+    }));
+    tickTetrisGame(game, 25);
+    assert.equal(piece(game, 1).y, 60);
+    assert.equal(piece(game, 2).y, 60);
+    assert.equal(board(game).flat().some(Boolean), false);
+  });
+}
+
 function spinSetup(mode, lines = 2, mini = false, player = 1) {
   const game = createTetrisGame(mode);
   game.state.active = [

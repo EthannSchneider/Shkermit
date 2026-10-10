@@ -8,7 +8,6 @@ import {
   LOCK_DELAY,
   MOVEMENT_REPEAT,
   PIECES,
-  ROWS,
   SOLO_COLS,
 } from '../../components/games/tetris/constants';
 import {
@@ -17,6 +16,7 @@ import {
   getCollidingPieces,
   getGhost,
   getPlayerBoard,
+  growGameBoard,
   holdPiece,
   isValid,
   makeBoard,
@@ -253,7 +253,7 @@ function useTetrisGame() {
       if (row.every(Boolean)) fullRows.push(rowIndex);
     });
     board = board.filter((_, rowIndex) => !fullRows.includes(rowIndex));
-    while (board.length < ROWS) board.unshift(Array<Cell | null>(source.cols).fill(null));
+    while (board.length < getPlayerBoard(source, player).length) board.unshift(Array<Cell | null>(source.cols).fill(null));
 
     let active = source.active.filter((item) => item.player !== player);
     if (fullRows.length && source.mode !== 'duel') {
@@ -285,7 +285,7 @@ function useTetrisGame() {
     let duelBoards = source.duelBoards;
     if (source.mode === 'duel') duelBoards = { ...source.duelBoards!, [player]: board };
 
-    const data: GameState = {
+    let data: GameState = {
       ...source,
       board: source.mode === 'duel' ? source.board : board,
       duelBoards,
@@ -309,6 +309,9 @@ function useTetrisGame() {
           ? `${fullRows.length} line${fullRows.length > 1 ? 's' : ''} cleared${combo > 0 ? ` • ${combo + 1}x combo` : ''}`
           : source.message),
     };
+
+    data = growGameBoard(data);
+    board = getPlayerBoard(data, player);
 
     if (source.mode === 'solo') playLockSound(fullRows.length);
 
@@ -417,7 +420,7 @@ function useTetrisGame() {
 
     if (!occupiedRows.length) return;
     const board = source.board.filter((_, index) => !occupiedRows.includes(index));
-    while (board.length < ROWS) board.unshift(Array<Cell | null>(source.cols).fill(null));
+    while (board.length < source.board.length) board.unshift(Array<Cell | null>(source.cols).fill(null));
     const active = source.active.map((piece) => {
       const lowestCell = Math.max(...getCells(piece).map(({ y }) => y));
       const shift = occupiedRows.filter((row) => row > lowestCell).length;
@@ -875,7 +878,7 @@ function useTetrisGame() {
       }
       gravityElapsedRef.current += elapsed;
       const speed = Math.max(0, 820 * (32 - source.level) / 31);
-      const steps = speed > 0 ? Math.min(ROWS, Math.floor(gravityElapsedRef.current / speed)) : ROWS;
+      const steps = speed > 0 ? Math.min(source.board.length, Math.floor(gravityElapsedRef.current / speed)) : source.board.length;
       gravityElapsedRef.current = speed > 0 ? gravityElapsedRef.current % speed : 0;
       for (let step = 0; step < steps; step += 1) {
         const previousY = gameRef.current.active[0]?.y;

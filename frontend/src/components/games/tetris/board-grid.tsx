@@ -1,30 +1,32 @@
-import { PIECE_COLORS, PLAYER_COLORS, ROWS } from './constants';
+import { PIECE_COLORS, PLAYER_COLORS } from './constants';
 import type { RenderedCell } from './types';
 
 type BoardGridProps = {
   cells: Map<string, RenderedCell>;
   cols: number;
+  rows: number;
   width: string;
+  height: string;
   accent: string;
   label: string;
 };
 
-export function BoardGrid({ cells, cols, width, accent, label }: BoardGridProps) {
+export function BoardGrid({ cells, cols, rows, width, height, accent, label }: BoardGridProps) {
   return (
     <div>
       {label && <p className="mb-2 text-center text-[9px]" style={{ color: accent }}>{label}</p>}
       <div
-        className="grid overflow-hidden rounded-xl border-2 bg-[#020704] p-1 shadow-[0_0_60px_rgba(118,255,76,0.08)] transition-[width] duration-700 ease-out motion-reduce:transition-none"
+        className="grid overflow-hidden rounded-xl border-2 bg-[#020704] p-1 shadow-[0_0_60px_rgba(118,255,76,0.08)] transition-[height] duration-700 ease-out motion-reduce:transition-none"
         style={{
           width,
-          aspectRatio: `${cols} / ${ROWS}`,
+          height,
           borderColor: `${accent}55`,
           gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-          gridTemplateRows: `repeat(${ROWS}, minmax(0, 1fr))`,
+          gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
           gap: '1px',
         }}
       >
-        {Array.from({ length: ROWS * cols }, (_, index) => {
+        {Array.from({ length: rows * cols }, (_, index) => {
           const x = index % cols;
           const y = Math.floor(index / cols);
           const rendered = cells.get(`${x}:${y}`);

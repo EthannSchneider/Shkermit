@@ -7,7 +7,7 @@ import {
   ROWS,
   SOLO_COLS,
 } from './constants';
-import { makeBoard } from './game-logic';
+import { getBoardRows, makeBoard } from './game-logic';
 import type {
   CoopState,
   GameMode,
@@ -105,16 +105,18 @@ export const initialCoop = (): CoopState => ({
 export const isGameState = (value: unknown): value is GameState => {
   if (!value || typeof value !== 'object') return false;
   const state = value as Partial<GameState>;
+  if (typeof state.level !== 'number' || !Number.isInteger(state.level) || state.level < 1) return false;
+  const rows = getBoardRows(state.level);
   return (state.mode === 'coop' || state.mode === 'duel')
     && state.cols === (state.mode === 'duel' ? SOLO_COLS : COOP_COLS)
     && Array.isArray(state.board)
-    && state.board.length === ROWS
+    && (state.board.length === rows || state.board.length === ROWS)
     && state.board.every((row) => Array.isArray(row) && row.length === state.cols)
     && (state.mode !== 'duel'
       || Boolean(state.duelBoards
         && [state.duelBoards[1], state.duelBoards[2]].every((board) => (
           Array.isArray(board)
-          && board.length === ROWS
+          && board.length === state.board!.length
           && board.every((row) => Array.isArray(row) && row.length === SOLO_COLS)
         ))))
     && Array.isArray(state.active)

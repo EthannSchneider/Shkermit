@@ -27,6 +27,25 @@ export const getCells = (piece: ActivePiece) => {
 export const makeBoard = (cols: number): (Cell | null)[][] =>
   Array.from({ length: ROWS }, () => Array<Cell | null>(cols).fill(null));
 
+// Add whole playable rows, accumulating 3% of the initial height per level.
+export const getBoardRows = (level: number) => ROWS + Math.ceil(ROWS * Math.max(0, level - 31) * 3 / 100);
+
+export const growGameBoard = (game: GameState): GameState => {
+  const extra = getBoardRows(game.level) - game.board.length;
+  if (extra <= 0) return game;
+  const grow = (board: (Cell | null)[][]) => [
+    ...Array.from({ length: extra }, () => Array<Cell | null>(game.cols).fill(null)),
+    ...board,
+  ];
+  return {
+    ...game,
+    board: grow(game.board),
+    duelBoards: game.duelBoards ? { 1: grow(game.duelBoards[1]), 2: grow(game.duelBoards[2]) } : null,
+    // Keep the existing stack and active pieces at the same distance from the floor.
+    active: game.active.map((piece) => ({ ...piece, y: piece.y + extra })),
+  };
+};
+
 export const spawnPiece = (
   type: PieceName,
   player: PlayerId,
@@ -60,7 +79,7 @@ export const isValid = (
   );
 
   return getCells(piece).every(({ x, y }) => {
-    if (x < 0 || x >= cols || y >= ROWS) return false;
+    if (x < 0 || x >= cols || y >= board.length) return false;
     if (y >= 0 && board[y][x]) return false;
     return !otherCells.has(`${x}:${y}`);
   });

@@ -1,4 +1,4 @@
-import { PIECES, ROWS } from './constants';
+import { PIECES } from './constants';
 import { getCells, getCollidingPieces, getPlayerBoard, spawnPiece } from './game-logic';
 import { getRotationCandidates } from './tetris-rules';
 import type { Action, ActivePiece, Cell, GameState, PieceName, PlayerId } from './types';
@@ -22,7 +22,7 @@ function fits(cells: Offset[], x: number, y: number, board: Board, cols: number,
   return cells.every((cell) => {
     const cellX = x + cell.x;
     const cellY = y + cell.y;
-    return cellX >= 0 && cellX < cols && cellY < ROWS
+    return cellX >= 0 && cellX < cols && cellY < board.length
       && !(cellY >= 0 && board[cellY][cellX])
       && !occupied?.has((cellY + 4) * cols + cellX);
   });
@@ -41,16 +41,16 @@ function place(board: Board, piece: ActivePiece, style: AutoPlayStyle): Placemen
   const placed = board.map((row) => [...row]);
   for (const { x, y } of cells) placed[piece.y + y][piece.x + x] = { type: piece.type, owner: piece.player };
   const remaining = placed.filter((row) => !row.every(Boolean));
-  const lines = ROWS - remaining.length;
-  while (remaining.length < ROWS) remaining.unshift(Array<Cell | null>(board[0].length).fill(null));
+  const lines = board.length - remaining.length;
+  while (remaining.length < board.length) remaining.unshift(Array<Cell | null>(board[0].length).fill(null));
 
   const heights = Array<number>(board[0].length).fill(0);
   let holes = 0;
   for (let x = 0; x < heights.length; x += 1) {
     let occupied = false;
-    for (let y = 0; y < ROWS; y += 1) {
+    for (let y = 0; y < board.length; y += 1) {
       if (remaining[y][x]) {
-        if (!occupied) heights[x] = ROWS - y;
+        if (!occupied) heights[x] = board.length - y;
         occupied = true;
       } else if (occupied) holes += 1;
     }
@@ -138,5 +138,5 @@ export function planAutoPlay(game: GameState, player: PlayerId, settings: AutoPl
 
 export function shouldAutoFlush(game: GameState, settings: AutoPlaySettings) {
   return settings.autoFlush && game.status === 'playing' && game.mode !== 'duel'
-    && game.meter >= 100 && game.board.slice(0, ROWS - 9).some((row) => row.some(Boolean));
+    && game.meter >= 100 && game.board.slice(0, game.board.length - 9).some((row) => row.some(Boolean));
 }
