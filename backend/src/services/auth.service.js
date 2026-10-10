@@ -44,6 +44,7 @@ export function createAuthService({ userModel, sessionService, emailVerification
       const user = await userModel.findByIdentifier(cleanIdentifier);
       const valid = user ? await bcrypt.compare(password, user.passwordHash) : false;
       if (!valid) throw new HttpError(401, "Invalid email, username, or password.");
+      if (user.suspendedAt) throw new HttpError(403, "Your account has been suspended.", { code: "ACCOUNT_SUSPENDED" });
       if (!user.emailVerifiedAt) {
         throw new HttpError(403, "Confirm your email before logging in.", {
           code: "EMAIL_NOT_VERIFIED",
@@ -56,6 +57,7 @@ export function createAuthService({ userModel, sessionService, emailVerification
 
     async verifyEmail(token) {
       const user = await emailVerificationService.verify(token);
+      if (user.suspendedAt) throw new HttpError(403, "Your account has been suspended.", { code: "ACCOUNT_SUSPENDED" });
       return { user, token: await sessionService.create(user.id) };
     },
 

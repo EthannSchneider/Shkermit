@@ -91,9 +91,12 @@ const tetrisWebSockets = createTetrisWebSocketServer(server, {
   async resolveUser(request) {
     const token = readCookie(request, SESSION_COOKIE_NAME);
     const session = await sessionService.findValid(token);
-    return session ? userModel.findById(session.userId) : null;
+    const user = session ? await userModel.findById(session.userId) : null;
+    return user && !user.suspendedAt ? user : null;
   },
-  saveScore(userId, mode, score) {
+  async saveScore(userId, mode, score) {
+    const user = await userModel.findById(userId);
+    if (!user || user.suspendedAt) return;
     return gameScoreService.save(userId, "tetris", mode, score, { trusted: true });
   },
 });

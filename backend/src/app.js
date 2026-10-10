@@ -2,6 +2,9 @@ import cookieParser from "cookie-parser";
 import express from "express";
 import helmet from "helmet";
 import path from "node:path";
+import { createAdminUserController } from "./controllers/admin-user.controller.js";
+import { createAdminUserRouter } from "./routes/admin-user.routes.js";
+import { createAdminUserService } from "./services/admin-user.service.js";
 import { createAccountController } from "./controllers/account.controller.js";
 import { createAuthController } from "./controllers/auth.controller.js";
 import { createPictureController } from "./controllers/picture.controller.js";
@@ -76,6 +79,7 @@ export function createApp({
     withTransaction,
   });
   const pictureService = createPictureService({ pictureModel, pictureStorage });
+  const adminUserService = createAdminUserService({ userModel, emailVerificationService, withTransaction });
   const gameScoreService = createGameScoreService({ gameScoreModel });
   const cookieOptions = sessionCookieOptions(sessionTtlMs, isProduction);
   const authRateLimit = createAuthRateLimit(isProduction);
@@ -84,6 +88,7 @@ export function createApp({
   const accountController = createAccountController({ accountService, cookieOptions });
   const pictureController = createPictureController({ pictureService });
   const gameScoreController = createGameScoreController({ gameScoreService });
+  const adminUserController = createAdminUserController({ adminUserService });
 
   app.disable("x-powered-by");
   app.use(helmet());
@@ -95,6 +100,9 @@ export function createApp({
   }));
 
   app.use("/api/health", createHealthRouter());
+  app.use("/api/admin/users", createAdminUserRouter({
+    controller: adminUserController, requireAuth, requireAdmin, authRateLimit,
+  }));
   app.use(
     "/api/auth",
     createAuthRouter({ controller: authController, authRateLimit, requireAuth }),

@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Home from "./pages/Home";
 import Header from "./components/header";
 import Footer from "./components/footer";
@@ -13,6 +13,7 @@ import Register from "./pages/Register";
 import Account from "./pages/Account";
 import VerifyEmail from "./pages/VerifyEmail";
 import AdminPictures from "./pages/AdminPictures";
+import AdminUsers from "./pages/AdminUsers";
 import { AuthProvider } from "./context/AuthContext";
 
 function App() {
@@ -28,6 +29,8 @@ function App() {
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/account" element={<Account />} />
           <Route path="/admin/pictures" element={<AdminPictures />} />
+          <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/games">
             <Route index element={<Games />} />
             <Route path="stats" element={<GameStats />} />

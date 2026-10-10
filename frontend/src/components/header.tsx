@@ -56,6 +56,7 @@ export default function Header() {
     { name: "Home", href: "/" },
     { name: "Games", href: "/games" },
     { name: "Pictures", href: "/pictures" },
+    ...(user?.isAdmin ? [{ name: "Admin", href: "/admin/users" }] : []),
   ];
 
   async function handleLogout() {

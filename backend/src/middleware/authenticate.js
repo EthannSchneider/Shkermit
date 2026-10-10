@@ -15,6 +15,11 @@ export function createAuthenticationMiddleware({ sessionService, userModel }) {
         });
       }
 
+      if (user.suspendedAt) {
+        response.clearCookie(SESSION_COOKIE_NAME, { path: "/" });
+        return response.status(403).json({ error: "Your account has been suspended.", code: "ACCOUNT_SUSPENDED" });
+      }
+
       request.user = user;
       next();
     } catch (error) {

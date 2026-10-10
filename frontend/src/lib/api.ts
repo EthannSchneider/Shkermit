@@ -4,6 +4,7 @@ export type User = {
   email: string;
   emailVerified: boolean;
   isAdmin: boolean;
+  isSuspended: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -19,6 +20,9 @@ export type Picture = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type AdminUser = User & { canManage: boolean };
+export type AdminUsersResponse = { users: AdminUser[]; total: number; page: number; pageSize: number };
 
 export type GameScore = {
   game: string;
@@ -79,6 +83,23 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
+  listUsers: (search: string, page: number) =>
+    request<AdminUsersResponse>(`/api/admin/users?${new URLSearchParams({ search, page: String(page) })}`),
+  updateUser: (id: number, username: string, email: string) =>
+    request<{ user: AdminUser; warning?: string }>(`/api/admin/users/${id}`, {
+      method: "PATCH", body: JSON.stringify({ username, email }),
+    }),
+  resendUserVerification: (id: number) =>
+    request<{ message: string }>(`/api/admin/users/${id}/resend-verification`, { method: "POST" }),
+  confirmUserEmail: (id: number, email: string) =>
+    request<{ user: AdminUser }>(`/api/admin/users/${id}/confirm-email`, {
+      method: "POST", body: JSON.stringify({ email }),
+    }),
+  deleteUser: (id: number) => request<void>(`/api/admin/users/${id}`, { method: "DELETE" }),
+  setUserSuspended: (id: number, suspended: boolean) =>
+    request<{ user: AdminUser }>(`/api/admin/users/${id}/suspension`, {
+      method: "PATCH", body: JSON.stringify({ suspended }),
+    }),
   me: () => request<UserResponse>("/api/auth/me"),
   register: (username: string, email: string, password: string) =>
     request<{ message: string; email: string }>("/api/auth/register", {

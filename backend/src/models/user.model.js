@@ -3,9 +3,35 @@ export function createUserModel(prisma, { adminEmails = [] } = {}) {
   const withRole = (user) => user && ({
     ...user,
     isAdmin: Boolean(user.emailVerifiedAt) && adminEmailSet.has(user.email.toLowerCase()),
+    isAdminAccount: adminEmailSet.has(user.email.toLowerCase()),
   });
 
   return {
+    isAdminEmail(email) {
+      return adminEmailSet.has(email.toLowerCase());
+    },
+
+    async list({ search, skip, take }) {
+      const where = search ? {
+        OR: [
+          { usernameKey: { contains: search.toLowerCase() } },
+          { email: { contains: search.toLowerCase() } },
+        ],
+      } : {};
+      const [users, total] = await Promise.all([
+        prisma.user.findMany({
+          where, skip, take,
+          orderBy: { id: "desc" },
+          select: {
+            id: true, username: true, email: true, emailVerifiedAt: true, suspendedAt: true,
+            createdAt: true, updatedAt: true,
+          },
+        }),
+        prisma.user.count({ where }),
+      ]);
+      return { users: users.map(withRole), total };
+    },
+
     async create({ username, email, passwordHash }) {
       return withRole(await prisma.user.create({
         data: {
@@ -50,6 +76,13 @@ export function createUserModel(prisma, { adminEmails = [] } = {}) {
       return withRole(await prisma.user.update({
         where: { id },
         data: { passwordHash },
+      }));
+    },
+
+    async setSuspended(id, suspended) {
+      return withRole(await prisma.user.update({
+        where: { id },
+        data: { suspendedAt: suspended ? new Date() : null },
       }));
     },
 

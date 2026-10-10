@@ -3,6 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../context/auth-context";
 import { api, type Picture } from "../lib/api";
 import { pictureSource } from "../lib/picture-assets";
+import AdminNavigation from "../components/admin-navigation";
 
 function byPosition(pictures: Picture[]) {
   return [...pictures].sort((left, right) => left.position - right.position || left.id - right.id);
@@ -202,6 +203,7 @@ export default function AdminPictures() {
         </div>
       </div>
 
+      <AdminNavigation />
       {createOpen && (
         <div
           className="admin-modal-backdrop"
