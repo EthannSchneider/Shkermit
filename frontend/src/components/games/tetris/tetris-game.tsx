@@ -72,8 +72,8 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
     (message, player) => message.split(`PLAYER ${player}`).join(playerLabel(player)),
     game.message,
   );
-  // Grow by 1% per level from level 33; square cells also push the bottom down.
-  const boardScale = 1 + Math.max(0, game.level - 32) * 0.01;
+  // Grow by 3% per level from level 32; square cells also push the bottom down.
+  const boardScale = 1 + Math.max(0, game.level - 31) * 0.03;
   const baseBoardWidth = game.mode === 'duel' ? 300 : game.mode === 'coop' ? 560 : 400;
   const baseViewportWidth = game.mode === 'duel' ? 44 : game.mode === 'coop' ? 92 : 82;
   const boardWidth = `min(${baseViewportWidth * boardScale}vw, ${baseBoardWidth * boardScale}px)`;
