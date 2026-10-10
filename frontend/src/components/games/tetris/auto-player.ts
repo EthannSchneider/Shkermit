@@ -138,5 +138,5 @@ export function planAutoPlay(game: GameState, player: PlayerId, settings: AutoPl
 
 export function shouldAutoFlush(game: GameState, settings: AutoPlaySettings) {
   return settings.autoFlush && game.status === 'playing' && game.mode !== 'duel'
-    && game.meter >= 100 && game.board.slice(0, game.board.length - 9).some((row) => row.some(Boolean));
+    && game.meter >= 100 && game.board.some((row) => row.some(Boolean));
 }

@@ -595,21 +595,27 @@ function useTetrisGame() {
   const closeSoundSettings = useCallback(() => setSoundSettingsOpen(false), []);
 
   useEffect(() => {
+    if (!canAutoPlay || !autoSettings.autoFlush || game.status !== 'playing' || game.mode === 'duel') return;
+    const timer = window.setInterval(() => {
+      const source = gameRef.current;
+      if (source.mode !== 'solo' && (!localPlayerRef.current || socketRef.current?.readyState !== WebSocket.OPEN)) return;
+      if (shouldAutoFlush(source, autoSettings)) sendCommand('frog_flush');
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [canAutoPlay, autoSettings, game.mode, game.status, sendCommand]);
+
+  useEffect(() => {
     if (!autoEnabled || game.status !== 'playing') return;
     const timer = window.setInterval(() => {
       const source = gameRef.current;
       const player = source.mode === 'solo' ? 1 : localPlayerRef.current;
       if (source.status !== 'playing' || !player || bindingAction) return;
       if (source.mode !== 'solo' && socketRef.current?.readyState !== WebSocket.OPEN) return;
-      if (shouldAutoFlush(source, autoSettings)) {
-        sendCommand('frog_flush');
-        return;
-      }
       const plan = planAutoPlay(source, player, autoSettings);
       if (plan?.length) sendAction(player, plan[0]);
     }, getAutoActionInterval(autoSettings, game.mode));
     return () => window.clearInterval(timer);
-  }, [autoEnabled, autoSettings, bindingAction, game.mode, game.status, sendAction, sendCommand]);
+  }, [autoEnabled, autoSettings, bindingAction, game.mode, game.status, sendAction]);
 
   useEffect(() => {
     socketMessageHandlerRef.current = (message) => {

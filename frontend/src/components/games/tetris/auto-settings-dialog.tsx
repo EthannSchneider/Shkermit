@@ -85,7 +85,7 @@ export function AutoSettingsDialog({ controller }: { controller: TetrisGameContr
 
         <label className={`flex items-start gap-3 rounded-xl border border-white/10 p-4 ${game.mode === 'duel' ? 'opacity-50' : ''}`}>
           <input type="checkbox" checked={autoSettings.autoFlush} disabled={game.mode === 'duel'} onChange={(event) => updateAutoSettings({ ...autoSettings, autoFlush: event.target.checked })} className="mt-1 h-4 w-4 accent-lime-300" />
-          <span><span className="block font-semibold">Automatic Frog Flush</span><span className="mt-1 block text-xs leading-5 text-white/50">{game.mode === 'duel' ? 'Frog Flush is available in solo and co-op.' : 'Use Frog Flush at full charge when the stack reaches 10 rows high.'}</span></span>
+          <span><span className="block font-semibold">Automatic Frog Flush</span><span className="mt-1 block text-xs leading-5 text-white/50">{game.mode === 'duel' ? 'Frog Flush is available in solo and co-op.' : 'Use Frog Flush at full charge whenever there are rows to clear. Works with autopilot on or off.'}</span></span>
         </label>
 
         {autoSettingsSaveError && <p role="alert" className="text-sm text-yellow-200">{autoSettingsSaveError}</p>}

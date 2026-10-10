@@ -80,7 +80,7 @@ test('autopilot clears rows below the original floor and flush uses the expanded
   game.meter = 100;
   const settings = { ...DEFAULT_AUTO_SETTINGS, autoFlush: true };
   game.board[14][0] = { type: 'G', owner: 1 };
-  assert.equal(shouldAutoFlush(game, settings), false);
+  assert.equal(shouldAutoFlush(game, settings), true);
   game.board[13][0] = { type: 'G', owner: 1 };
   assert.equal(shouldAutoFlush(game, settings), true);
 });
@@ -286,7 +286,7 @@ test('all autopilot styles make legal placements with next-piece planning on or 
   }
 });
 
-test('automatic Frog Flush only fires when enabled, charged, and the stack is high', () => {
+test('automatic Frog Flush fires at full charge even with a low stack', () => {
   const game = initialGame();
   game.status = 'playing';
   game.meter = 100;
@@ -300,7 +300,86 @@ test('automatic Frog Flush only fires when enabled, charged, and the stack is hi
   assert.equal(shouldAutoFlush({ ...game, mode: 'duel' }, settings), false);
   game.board[10][0] = null;
   game.board[11][0] = { type: 'G', owner: 1 };
+  assert.equal(shouldAutoFlush(game, settings), true);
+  game.board[11][0] = null;
+  game.board[19][0] = { type: 'G', owner: 1 };
+  assert.equal(shouldAutoFlush(game, settings), true);
+  game.board[19][0] = null;
   assert.equal(shouldAutoFlush(game, settings), false);
+});
+
+test('automatic flush timer runs independently of autopilot and uses the latest charge', async () => {
+  const source = await readFile(new URL('../src/pages/games/tetris.tsx', import.meta.url), 'utf8');
+  const page = ts.createSourceFile('tetris.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let flushEffect;
+  function visit(node) {
+    if (ts.isCallExpression(node) && node.expression.getText(page) === 'useEffect'
+      && node.arguments[0].getText(page).includes('shouldAutoFlush(')) flushEffect = node;
+    ts.forEachChild(node, visit);
+  }
+  visit(page);
+  assert.ok(flushEffect, 'Automatic flush must have its own effect');
+  const { outputText } = ts.transpileModule(flushEffect.getText(page), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+  });
+  const runEffect = new Function('useEffect', 'canAutoPlay', 'autoSettings', 'game', 'gameRef',
+    'localPlayerRef', 'socketRef', 'window', 'WebSocket', 'shouldAutoFlush', 'sendCommand', outputText);
+
+  function setup({ mode = 'solo', status = 'playing', enabled = true, allowed = true,
+    player = 1, connected = true, speed = 1 } = {}) {
+    const game = initialGame(mode);
+    game.status = status;
+    game.board.at(-1)[0] = { type: 'G', owner: 1 };
+    const gameRef = { current: game };
+    const socketRef = { current: { readyState: connected ? 1 : 3 } };
+    const commands = [];
+    let tick, cleanup, cleared = false;
+    runEffect((effect) => { cleanup = effect(); }, allowed,
+      { ...DEFAULT_AUTO_SETTINGS, autoFlush: enabled, actionsPerSecond: speed }, game, gameRef,
+      { current: player }, socketRef, {
+        setInterval(callback, interval) {
+          assert.equal(interval, 100, 'Flush must not wait for autopilot speed');
+          tick = callback;
+          return 42;
+        },
+        clearInterval(id) { assert.equal(id, 42); cleared = true; },
+      }, { OPEN: 1 }, shouldAutoFlush, (command) => {
+        commands.push(command);
+        gameRef.current = { ...gameRef.current, meter: 0 };
+      });
+    return { gameRef, socketRef, commands, tick, cleanup, wasCleared: () => cleared };
+  }
+
+  for (const mode of ['solo', 'coop']) {
+    for (const speed of [1, 20]) {
+      // No autopilot state is provided: the flush setting alone must activate the timer.
+      const timer = setup({ mode, speed });
+      assert.ok(timer.tick);
+      timer.tick();
+      assert.deepEqual(timer.commands, []);
+      timer.gameRef.current = { ...timer.gameRef.current, meter: 100 };
+      timer.tick();
+      timer.tick();
+      assert.deepEqual(timer.commands, ['frog_flush']);
+      timer.cleanup();
+      assert.equal(timer.wasCleared(), true);
+    }
+  }
+  for (const options of [{ status: 'paused' }, { status: 'ready' }, { status: 'gameover' },
+    { mode: 'duel' }, { enabled: false }, { allowed: false }]) {
+    assert.equal(setup(options).tick, undefined);
+  }
+  for (const options of [{ connected: false }, { player: null }]) {
+    const timer = setup({ mode: 'coop', ...options });
+    timer.gameRef.current = { ...timer.gameRef.current, meter: 100 };
+    timer.tick();
+    assert.deepEqual(timer.commands, []);
+  }
+  const timer = setup({ mode: 'coop', connected: false });
+  timer.gameRef.current = { ...timer.gameRef.current, meter: 100 };
+  timer.socketRef.current.readyState = 1;
+  timer.tick();
+  assert.deepEqual(timer.commands, ['frog_flush']);
 });
 
 test('solo gives 500 ms on contact and restarts the delay after a grounded move', () => {
