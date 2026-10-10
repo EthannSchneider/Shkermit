@@ -18,8 +18,12 @@ async function manageableUser(model, id, actor) {
   return user;
 }
 
-export function createAdminUserService({ userModel, emailVerificationService, withTransaction }) {
+export function createAdminUserService({ userModel, emailVerificationService, withTransaction, boardWallpaperService }) {
   return {
+    async updateBoardWallpaper(id, wallpaper, file) {
+      return boardWallpaperService.update(userId(id), wallpaper, file);
+    },
+
     async list({ search = "", page = "1" }) {
       if (typeof search !== "string" || search.length > 254 || typeof page !== "string" ||
           !/^\d+$/.test(page) || !Number.isSafeInteger(Number(page)) || Number(page) < 1 || Number(page) > 1000000) {
@@ -90,10 +94,11 @@ export function createAdminUserService({ userModel, emailVerificationService, wi
     },
 
     async deleteUser(actor, id) {
-      await withTransaction(async ({ userModel: users }) => {
+      const deletedUser = await withTransaction(async ({ userModel: users }) => {
         const user = await manageableUser(users, id, actor);
-        await users.deleteById(user.id);
+        return users.deleteById(user.id);
       });
+      await boardWallpaperService.remove(deletedUser.boardWallpaper);
     },
 
     async setSuspended(actor, id, suspended) {

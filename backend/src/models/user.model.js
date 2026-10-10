@@ -24,7 +24,7 @@ export function createUserModel(prisma, { adminEmails = [] } = {}) {
           orderBy: { id: "desc" },
           select: {
             id: true, username: true, email: true, emailVerifiedAt: true, suspendedAt: true,
-            createdAt: true, updatedAt: true,
+            createdAt: true, updatedAt: true, boardWallpaper: true,
           },
         }),
         prisma.user.count({ where }),
@@ -76,6 +76,13 @@ export function createUserModel(prisma, { adminEmails = [] } = {}) {
       return withRole(await prisma.user.update({
         where: { id },
         data: { passwordHash },
+      }));
+    },
+
+    async updateBoardWallpaper(id, boardWallpaper) {
+      return withRole(await prisma.user.update({
+        where: { id },
+        data: { boardWallpaper },
       }));
     },
 

@@ -6,6 +6,11 @@ function adminUser(user) {
 
 export function createAdminUserController({ adminUserService }) {
   return {
+    async updateBoardWallpaper(request, response) {
+      const user = await adminUserService.updateBoardWallpaper(request.params.id, request.body?.boardWallpaper, request.file);
+      response.json({ user: adminUser(user) });
+    },
+
     async list(request, response) {
       const result = await adminUserService.list(request.query);
       response.json({ ...result, users: result.users.map(adminUser) });

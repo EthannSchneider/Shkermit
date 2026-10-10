@@ -15,8 +15,13 @@ export function createAccountService({
   sessionService,
   emailVerificationService,
   withTransaction,
+  boardWallpaperService,
 }) {
   return {
+    async updateBoardWallpaper(user, wallpaper, file) {
+      return boardWallpaperService.update(user.id, wallpaper, file);
+    },
+
     async updateProfile(user, { username = user.username, email = user.email }) {
       const error = validateUsername(username) || validateEmail(email);
       if (error) throw new HttpError(400, error);
@@ -61,7 +66,8 @@ export function createAccountService({
       if (!(await bcrypt.compare(password ?? "", user.passwordHash))) {
         throw new HttpError(401, "Password is incorrect.");
       }
-      await userModel.deleteById(user.id);
+      const deletedUser = await userModel.deleteById(user.id);
+      await boardWallpaperService.remove(deletedUser.boardWallpaper);
     },
   };
 }

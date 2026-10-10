@@ -30,6 +30,8 @@ import { createEmailVerificationService } from "./services/email-verification.se
 import { createPictureService } from "./services/picture.service.js";
 import { createGameScoreService } from "./services/game-score.service.js";
 import { createPictureStorage } from "./services/picture-storage.service.js";
+import { createBoardWallpaperService } from "./services/board-wallpaper.service.js";
+import { HttpError } from "./utils/http-error.js";
 
 export function createApp({
   db,
@@ -50,6 +52,8 @@ export function createApp({
   const pictureModel = createPictureModel(db);
   const gameScoreModel = createGameScoreModel(db);
   const pictureStorage = createPictureStorage(pictureUploadDirectory);
+  const wallpaperDirectory = path.resolve(pictureUploadDirectory, "board-wallpapers");
+  const wallpaperStorage = createPictureStorage(wallpaperDirectory);
   const sessionService = createSessionService({ sessionModel, sessionTtlMs });
   const withTransaction = (work) =>
     db.$transaction((transaction) =>
@@ -72,14 +76,16 @@ export function createApp({
     sessionService,
     emailVerificationService,
   });
+  const boardWallpaperService = createBoardWallpaperService({ storage: wallpaperStorage, withTransaction });
   const accountService = createAccountService({
     userModel,
     sessionService,
     emailVerificationService,
     withTransaction,
+    boardWallpaperService,
   });
   const pictureService = createPictureService({ pictureModel, pictureStorage });
-  const adminUserService = createAdminUserService({ userModel, emailVerificationService, withTransaction });
+  const adminUserService = createAdminUserService({ userModel, emailVerificationService, withTransaction, boardWallpaperService });
   const gameScoreService = createGameScoreService({ gameScoreModel });
   const cookieOptions = sessionCookieOptions(sessionTtlMs, isProduction);
   const authRateLimit = createAuthRateLimit(isProduction);
@@ -91,9 +97,15 @@ export function createApp({
   const adminUserController = createAdminUserController({ adminUserService });
 
   app.disable("x-powered-by");
-  app.use(helmet());
+  app.use(helmet({
+    contentSecurityPolicy: { directives: { imgSrc: ["'self'", "data:", "blob:"] } },
+  }));
   app.use(express.json({ limit: "20kb" }));
   app.use(cookieParser());
+  app.use("/api/board-wallpapers", express.static(wallpaperDirectory, {
+    immutable: true,
+    maxAge: "1y",
+  }), (_request, _response, next) => next(new HttpError(404, "Board wallpaper not found.")));
   app.use("/api/picture-assets", express.static(path.join(pictureUploadDirectory, "builtin"), {
     immutable: true,
     maxAge: "1y",

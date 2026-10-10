@@ -3,6 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import AdminNavigation from "../components/admin-navigation";
 import { useAuth } from "../context/auth-context";
 import { api, type AdminUser, type AdminUsersResponse } from "../lib/api";
+import { BoardWallpaperSettings } from "../components/games/tetris/board-wallpaper-settings";
 
 function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "The request failed.";
@@ -51,7 +52,7 @@ function UserEditor({ user, onSaved, onCancel }: {
 }
 
 export default function AdminUsers() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, setUser } = useAuth();
   const [data, setData] = useState<AdminUsersResponse | null>(null);
   const [draftSearch, setDraftSearch] = useState("");
   const [search, setSearch] = useState("");
@@ -62,6 +63,7 @@ export default function AdminUsers() {
   const [notice, setNotice] = useState("");
   const [busyId, setBusyId] = useState<number | null>(null);
   const [editing, setEditing] = useState<AdminUser | null>(null);
+  const [wallpaperUser, setWallpaperUser] = useState<AdminUser | null>(null);
 
   useEffect(() => {
     if (!user?.isAdmin) return;
@@ -101,6 +103,7 @@ export default function AdminUsers() {
     setLoading(true);
     setError("");
     setEditing(null);
+    setWallpaperUser(null);
     setPage(nextPage);
   }
 
@@ -109,6 +112,7 @@ export default function AdminUsers() {
     setSearch(draftSearch.trim());
     setPage(1);
     setEditing(null);
+    setWallpaperUser(null);
     setNotice("");
     reload();
   }
@@ -176,7 +180,7 @@ export default function AdminUsers() {
   }
 
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
-  const actionsDisabled = busyId !== null || editing !== null || loading;
+  const actionsDisabled = busyId !== null || editing !== null || wallpaperUser !== null || loading;
 
   return (
     <main className="gallery-page admin-users-page">
@@ -184,7 +188,7 @@ export default function AdminUsers() {
         <div>
           <p className="auth-eyebrow">Administration</p>
           <h1>Manage users</h1>
-          <p className="gallery-status">Find accounts, edit profiles, suspend users, and manage email confirmation.</p>
+          <p className="gallery-status">Find accounts, edit profiles and board wallpapers, suspend users, and manage email confirmation.</p>
         </div>
         <Link className="account-cta" to="/account">My account</Link>
       </div>
@@ -194,10 +198,10 @@ export default function AdminUsers() {
           <label htmlFor="user-search">Search users</label>
           <div>
             <input id="user-search" type="search" placeholder="Username or email" maxLength={254} value={draftSearch} onChange={(event) => setDraftSearch(event.target.value)} />
-            <button className="secondary-button" disabled={busyId !== null || editing !== null}>Search</button>
+            <button className="secondary-button" disabled={busyId !== null || editing !== null || wallpaperUser !== null}>Search</button>
           </div>
         </form>
-        <p className="field-hint">Administrator accounts are protected. Admin access is configured through ADMIN_EMAILS.</p>
+        <p className="field-hint">Administrator profiles are protected. Board wallpapers can be changed for every account.</p>
         {notice && <div className="form-message form-success" role="status">{notice}</div>}
         {error && <div className="form-message form-error" role="alert">{error} <button type="button" className="underline" onClick={reload} disabled={busyId !== null || editing !== null}>Reload list</button></div>}
         {editing && <UserEditor key={editing.id} user={editing} onCancel={() => setEditing(null)} onSaved={(saved, warning) => {
@@ -205,6 +209,19 @@ export default function AdminUsers() {
           setNotice(warning ?? `Profile updated for ${saved.username}.`);
           reload();
         }} />}
+        {wallpaperUser && <section className="settings-card admin-user-editor" aria-labelledby="user-wallpaper-title">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 id="user-wallpaper-title">Wallpaper for {wallpaperUser.username}</h2>
+            <button type="button" className="secondary-button" onClick={() => setWallpaperUser(null)}>Done</button>
+          </div>
+          <BoardWallpaperSettings key={wallpaperUser.id} wallpaper={wallpaperUser.boardWallpaper} allowCustomUpload onSave={async (wallpaper, image) => {
+            const result = await api.updateUserBoardWallpaper(wallpaperUser.id, wallpaper, image);
+            setData((current) => current && ({ ...current, users: current.users.map((item) => item.id === result.user.id ? result.user : item) }));
+            setUser((current) => current?.id === result.user.id ? { ...current, boardWallpaper: result.user.boardWallpaper } : current);
+            setWallpaperUser((current) => current?.id === result.user.id ? result.user : current);
+            return result.user.boardWallpaper;
+          }} />
+        </section>}
         {loading ? <p className="gallery-status" role="status">Loading users…</p> : data && (
           <>
             <p className="gallery-status">{data.total} {data.total === 1 ? "account" : "accounts"}{search ? ` matching “${search}”` : ""}</p>
@@ -212,13 +229,14 @@ export default function AdminUsers() {
               <div className="admin-user-table-wrapper">
                 <table className="admin-user-table">
                   <caption className="sr-only">Registered users</caption>
-                  <thead><tr><th scope="col">User</th><th scope="col">Status</th><th scope="col">Joined</th><th scope="col">Actions</th></tr></thead>
+                  <thead><tr><th scope="col">User</th><th scope="col">Status</th><th scope="col">Joined</th><th scope="col">Wallpaper</th><th scope="col">Actions</th></tr></thead>
                   <tbody>
                     {data.users.map((target) => (
                       <tr key={target.id}>
                         <td><strong>{target.username}</strong><span className="admin-user-email">{target.email}</span></td>
                         <td><span className={`admin-user-badge ${target.emailVerified ? "verified" : "pending"}`}>{target.emailVerified ? "Confirmed" : "Pending email"}</span>{target.isSuspended && <span className="admin-user-badge suspended">Suspended</span>}{!target.canManage && <span className="admin-user-email">Protected admin{target.id === user.id ? " (you)" : ""}</span>}</td>
                         <td><time dateTime={target.createdAt}>{new Date(target.createdAt).toLocaleDateString()}</time></td>
+                        <td><button className="secondary-button" type="button" disabled={actionsDisabled} onClick={() => { setWallpaperUser(target); setError(""); setNotice(""); }}>Wallpaper</button></td>
                         <td>{target.canManage ? (
                           <div className="admin-user-actions">
                             <button className="secondary-button" type="button" disabled={actionsDisabled} onClick={() => { setEditing(target); setError(""); setNotice(""); }}>Edit</button>

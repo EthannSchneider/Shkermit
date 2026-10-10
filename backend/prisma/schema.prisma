@@ -15,6 +15,7 @@ model User {
   passwordHash           String                  @map("password_hash")
   emailVerifiedAt        DateTime?               @map("email_verified_at")
   suspendedAt            DateTime?               @map("suspended_at")
+  boardWallpaper         String                  @default("classic") @map("board_wallpaper")
   createdAt              DateTime                @default(now()) @map("created_at")
   updatedAt              DateTime                @updatedAt @map("updated_at")
   sessions               Session[]

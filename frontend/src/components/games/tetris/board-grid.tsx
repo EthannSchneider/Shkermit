@@ -1,5 +1,6 @@
 import { PIECE_COLORS, PLAYER_COLORS } from './constants';
 import type { RenderedCell } from './types';
+import { getBoardWallpaper } from './board-wallpapers';
 
 type BoardGridProps = {
   cells: Map<string, RenderedCell>;
@@ -9,9 +10,11 @@ type BoardGridProps = {
   height: string;
   accent: string;
   label: string;
+  wallpaper?: string;
+  imagePreviewUrl?: string;
 };
 
-export function BoardGrid({ cells, cols, rows, width, height, accent, label }: BoardGridProps) {
+export function BoardGrid({ cells, cols, rows, width, height, accent, label, wallpaper, imagePreviewUrl }: BoardGridProps) {
   return (
     <div>
       {label && <p className="mb-2 text-center text-[9px]" style={{ color: accent }}>{label}</p>}
@@ -20,6 +23,9 @@ export function BoardGrid({ cells, cols, rows, width, height, accent, label }: B
         style={{
           width,
           height,
+          backgroundImage: getBoardWallpaper(wallpaper, imagePreviewUrl).backgroundImage,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
           borderColor: `${accent}55`,
           gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
           gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,

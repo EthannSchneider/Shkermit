@@ -5,6 +5,7 @@ export type User = {
   emailVerified: boolean;
   isAdmin: boolean;
   isSuspended: boolean;
+  boardWallpaper: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -82,7 +83,22 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+function wallpaperBody(boardWallpaper: string, image?: File) {
+  if (!image) return JSON.stringify({ boardWallpaper });
+  const body = new FormData();
+  body.set("image", image);
+  return body;
+}
+
 export const api = {
+  updateBoardWallpaper: (boardWallpaper: string, image?: File) =>
+    request<UserResponse>("/api/account/wallpaper", {
+      method: "PATCH", body: wallpaperBody(boardWallpaper, image),
+    }),
+  updateUserBoardWallpaper: (id: number, boardWallpaper: string, image?: File) =>
+    request<{ user: AdminUser }>(`/api/admin/users/${id}/wallpaper`, {
+      method: "PATCH", body: wallpaperBody(boardWallpaper, image),
+    }),
   listUsers: (search: string, page: number) =>
     request<AdminUsersResponse>(`/api/admin/users?${new URLSearchParams({ search, page: String(page) })}`),
   updateUser: (id: number, username: string, email: string) =>

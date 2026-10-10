@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-context";
 import { api } from "../lib/api";
+import { BoardWallpaperSettings } from "../components/games/tetris/board-wallpaper-settings";
 
 type Notice = { kind: "success" | "error"; text: string } | null;
 
@@ -97,6 +98,15 @@ export default function Account() {
           <label>Email<input name="email" type="email" defaultValue={user.email} required /></label>
           <button className="primary-button" disabled={busy === "profile"}>Save profile</button>
         </form>
+      </section>
+
+      <section className="settings-card">
+        <h2>Board wallpaper</h2>
+        <BoardWallpaperSettings key={user.id} wallpaper={user.boardWallpaper} allowCustomUpload={user.isAdmin} onSave={async (wallpaper, image) => {
+          const result = await api.updateBoardWallpaper(wallpaper, image);
+          setUser((current) => current?.id === result.user.id ? { ...current, boardWallpaper: result.user.boardWallpaper } : current);
+          return result.user.boardWallpaper;
+        }} />
       </section>
 
       <section className="settings-card">

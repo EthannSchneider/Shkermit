@@ -12,12 +12,17 @@ import { handleTetrisController } from './controller-input';
 import { useControllerBindings } from '../../../hooks/use-controller-bindings';
 import { AutoSettingsDialog } from './auto-settings-dialog';
 import { SoundSettingsDialog } from './sound-settings-dialog';
+import { useAuth } from '../../../context/auth-context';
+import { BoardWallpaperDialog } from './board-wallpaper-dialog';
 
 type TetrisGameProps = {
   controller: TetrisGameController;
 };
 
 export default function TetrisGame({ controller }: TetrisGameProps) {
+  const { user } = useAuth();
+  const [wallpaperOpen, setWallpaperOpen] = useState(false);
+  const wallpaperSettingsOpen = wallpaperOpen && Boolean(user);
   const controllerSettings = useControllerBindings('tetris');
   const [isAntoineLoupOpen, setIsAntoineLoupOpen] = useState(false);
   const {
@@ -67,6 +72,21 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
       className={`rounded-lg border px-3 py-2 text-[9px] transition ${autoEnabled ? 'border-lime-300/50 bg-lime-300/15 text-lime-200' : 'border-white/10 bg-white/4 text-white/35 hover:bg-white/10 hover:text-white/75'}`}
     >auto</button>
   ) : null;
+  const wallpaperButton = user ? (
+    <button type="button" aria-haspopup="dialog" aria-expanded={wallpaperSettingsOpen}
+      onClick={() => {
+        controller.closeAutoSettings();
+        controller.closeSoundSettings();
+        setBindingAction(null);
+        if (game.status === 'playing') sendCommand('toggle_pause');
+        setWallpaperOpen(true);
+      }}
+      className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[9px] text-white/50 transition hover:bg-white/10 hover:text-white/75">
+      Board wallpaper
+    </button>
+  ) : null;
+  const wallpaperDialog = wallpaperSettingsOpen
+    ? <BoardWallpaperDialog onClose={() => setWallpaperOpen(false)} /> : null;
   const playerLabel = (player: PlayerId) => coop.playerNames[player] || `PLAYER ${player}`;
   const gameMessage = ([1, 2] as PlayerId[]).reduce(
     (message, player) => message.split(`PLAYER ${player}`).join(playerLabel(player)),
@@ -78,7 +98,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
   const boardWidth = `min(${baseViewportWidth}vw, ${baseBoardWidth}px)`;
   const boardHeight = `min(${baseViewportWidth * boardRows / game.cols}vw, ${baseBoardWidth * boardRows / game.cols}px)`;
   const controllerStatus = useGamepad({
-    enabled: !bindingAction && !isAntoineLoupOpen && !controllerSettings.settingsOpen && !autoSettingsOpen && !soundSettingsOpen,
+    enabled: !bindingAction && !isAntoineLoupOpen && !controllerSettings.settingsOpen && !autoSettingsOpen && !soundSettingsOpen && !wallpaperSettingsOpen,
     bindings: controllerSettings.bindings,
     onCapture: controllerSettings.onCapture,
     repeat: ['left', 'right', 'down'],
@@ -113,6 +133,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
   if (game.status === 'ready') {
     return (
       <main className="relative min-h-screen overflow-hidden bg-[#061008] px-4 py-10 text-white sm:px-8">
+        {wallpaperDialog}
         {soundSettingsOpen && <SoundSettingsDialog controller={controller} />}
         <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(rgba(151,255,99,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(151,255,99,.05) 1px, transparent 1px)', backgroundSize: '34px 34px' }} />
         <img src={shkermitImage} alt="" className="pointer-events-none absolute -bottom-20 -right-24 w-110 opacity-15 grayscale" />
@@ -120,6 +141,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
           <div className="mb-10 flex items-center justify-between gap-4">
             <a href="/games" className="inline-flex items-center gap-2 text-xs text-lime-200/60 transition hover:text-lime-200">← BACK TO THE ARCADE</a>
             <div className="flex items-center gap-2">
+              {wallpaperButton}
               {soundButton}
             </div>
           </div>
@@ -293,6 +315,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#061008] px-3 py-6 text-white sm:px-6 sm:py-8">
+      {wallpaperDialog}
       <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 50% 10%, rgba(117,255,76,.16), transparent 38%)' }} />
       {autoSettingsOpen && <AutoSettingsDialog controller={controller} />}
       {soundSettingsOpen && <SoundSettingsDialog controller={controller} />}
@@ -304,6 +327,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
           </div>
           <div className="flex flex-wrap items-center gap-2 text-[9px]">
             {autoButton}
+            {wallpaperButton}
             {soundButton}
             <span className={`h-2 w-2 rounded-full ${game.status === 'playing' ? 'animate-pulse bg-lime-300' : 'bg-yellow-300'}`} />
             <span className="text-white/45">
@@ -358,6 +382,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
                     <BoardGrid
                       key={player}
                       cells={renderedBoards[player]}
+                      wallpaper={user?.boardWallpaper}
                       cols={game.cols}
                       rows={boardRows}
                       width={boardWidth}
@@ -370,6 +395,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
               ) : (
                 <BoardGrid
                   cells={renderedBoards[1]}
+                  wallpaper={user?.boardWallpaper}
                   cols={game.cols}
                   rows={boardRows}
                   width={boardWidth}
