@@ -74,6 +74,7 @@ function useTetrisGame() {
   const [autoSettings, setAutoSettings] = useState(getSavedAutoSettings);
   const [autoSettingsSaveError, setAutoSettingsSaveError] = useState('');
   const [autoSettingsRequested, setAutoSettingsRequested] = useState(false);
+  const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
   const autoSettingsOpen = autoSettingsRequested && canAutoPlay && game.status !== 'ready';
   const autoEnabled = canAutoPlay && autoUserId === user?.id && game.status !== 'ready' && game.status !== 'gameover';
   const [coop, setCoop] = useState<CoopState>(initialCoop);
@@ -93,7 +94,7 @@ function useTetrisGame() {
   const multiplayerSessionRef = useRef<SavedMultiplayerSession | null>(getSavedMultiplayerSession());
   const intentionalCloseRef = useRef(false);
   const socketMessageHandlerRef = useRef<(message: Record<string, unknown>) => void>(() => undefined);
-  const { soundEnabled, toggleSound, playLockSound } = useTetrisAudio(game);
+  const { soundSettings, soundSettingsSaveError, updateSoundSettings, playLockSound } = useTetrisAudio(game);
 
   const sendSocketMessage = useCallback((message: Record<string, unknown>) => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -579,9 +580,16 @@ function useTetrisGame() {
   const openAutoSettings = useCallback(() => {
     if (!canAutoPlay || gameRef.current.status === 'ready') return;
     setBindingAction(null);
+    setSoundSettingsOpen(false);
     setAutoSettingsRequested(true);
   }, [canAutoPlay]);
   const closeAutoSettings = useCallback(() => setAutoSettingsRequested(false), []);
+  const openSoundSettings = useCallback(() => {
+    setBindingAction(null);
+    setAutoSettingsRequested(false);
+    setSoundSettingsOpen(true);
+  }, []);
+  const closeSoundSettings = useCallback(() => setSoundSettingsOpen(false), []);
 
   useEffect(() => {
     if (!autoEnabled || game.status !== 'playing') return;
@@ -783,7 +791,7 @@ function useTetrisGame() {
       if (source.status === 'playing' && player) sendAction(player, action);
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (autoSettingsOpen) return;
+      if (autoSettingsOpen || soundSettingsOpen) return;
       const target = event.target;
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable)) return;
       const isModifierKey = [
@@ -820,7 +828,7 @@ function useTetrisGame() {
     const onVisibility = () => { if (document.hidden) clearHeld(); };
     const timer = window.setInterval(() => {
       const target = document.activeElement;
-      if (autoSettingsOpen || gameRef.current.status !== 'playing' || !document.hasFocus() || document.hidden
+      if (autoSettingsOpen || soundSettingsOpen || gameRef.current.status !== 'playing' || !document.hasFocus() || document.hidden
         || (target instanceof HTMLElement && (target.matches('input, textarea, select') || target.isContentEditable))) {
         clearHeld();
         return;
@@ -843,7 +851,7 @@ function useTetrisGame() {
       window.removeEventListener('blur', clearHeld);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [autoSettingsOpen, bindingAction, keyBindings, sendAction, sendCommand]);
+  }, [autoSettingsOpen, soundSettingsOpen, bindingAction, keyBindings, sendAction, sendCommand]);
 
   useEffect(() => {
     if (game.status !== 'playing') return;
@@ -955,8 +963,13 @@ function useTetrisGame() {
     sendCommand,
     renderedBoards,
     returnToMenu,
-    soundEnabled,
-    toggleSound,
+    soundSettings,
+    soundSettingsSaveError,
+    updateSoundSettings,
+    soundSettingsOpen,
+    openSoundSettings,
+    closeSoundSettings,
+    previewSound: () => playLockSound(0),
     canAutoPlay,
     autoEnabled,
     toggleAuto,

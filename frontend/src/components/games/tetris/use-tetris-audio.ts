@@ -4,8 +4,7 @@ import gameMusic from '../../../assets/sound/tetris/musics/tetwis.wav';
 import lineSound from '../../../assets/sound/tetris/scnenes/line.mp3';
 import placeSound from '../../../assets/sound/tetris/scnenes/place.wav';
 import type { GameState } from './types';
-
-const SOUND_PREFERENCE_KEY = 'shkermitStacksSoundEnabled';
+import { applySoundSettings, getSavedSoundSettings, normalizeSoundSettings, SOUND_SETTINGS_STORAGE_KEY, type SoundSettings } from './sound-settings';
 
 type TetrisAudio = {
   menu: HTMLAudioElement;
@@ -32,13 +31,14 @@ const totalLines = (game: GameState) => game.mode === 'duel'
   : game.lines;
 
 export function useTetrisAudio(game: GameState) {
-  const [soundEnabled, setSoundEnabled] = useState(() => (
-    window.localStorage.getItem(SOUND_PREFERENCE_KEY) !== 'false'
-  ));
+  const [soundSettings, setSoundSettings] = useState(getSavedSoundSettings);
+  const [soundSettingsSaveError, setSoundSettingsSaveError] = useState('');
+  const musicEnabled = !soundSettings.muted && soundSettings.masterVolume > 0 && soundSettings.musicVolume > 0;
   const audioRef = useRef<TetrisAudio | null>(null);
   const previousGameRef = useRef(game);
 
   const play = useCallback((audio: HTMLAudioElement) => {
+    if (audio.muted || audio.volume === 0) return;
     audio.currentTime = 0;
     void audio.play().catch(() => undefined);
   }, []);
@@ -47,7 +47,7 @@ export function useTetrisAudio(game: GameState) {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (!soundEnabled) {
+    if (!musicEnabled) {
       audio.menu.pause();
       audio.game.pause();
       return;
@@ -66,7 +66,7 @@ export function useTetrisAudio(game: GameState) {
       audio.game.pause();
       if (game.status === 'gameover') audio.game.currentTime = 0;
     }
-  }, [game.status, soundEnabled]);
+  }, [game.status, musicEnabled]);
 
   useEffect(() => {
     const audio: TetrisAudio = {
@@ -77,10 +77,6 @@ export function useTetrisAudio(game: GameState) {
     };
     audio.menu.loop = true;
     audio.game.loop = true;
-    audio.menu.volume = 0.28;
-    audio.game.volume = 0.28;
-    audio.place.volume = 0.55;
-    audio.line.volume = 0.65;
     Object.values(audio).forEach((track) => { track.preload = 'auto'; });
     audioRef.current = audio;
 
@@ -95,13 +91,17 @@ export function useTetrisAudio(game: GameState) {
   }, []);
 
   useEffect(() => {
+    if (audioRef.current) applySoundSettings(audioRef.current, soundSettings);
+  }, [soundSettings]);
+
+  useEffect(() => {
     syncMusic();
   }, [syncMusic]);
 
   // Browsers can block music until the first user gesture. Retry once the player
   // interacts with the page, while keeping normal status changes declarative.
   useEffect(() => {
-    if (!soundEnabled) return;
+    if (!musicEnabled) return;
     const unlockAudio = () => syncMusic();
     window.addEventListener('pointerdown', unlockAudio, { once: true });
     window.addEventListener('keydown', unlockAudio, { once: true });
@@ -109,14 +109,14 @@ export function useTetrisAudio(game: GameState) {
       window.removeEventListener('pointerdown', unlockAudio);
       window.removeEventListener('keydown', unlockAudio);
     };
-  }, [soundEnabled, syncMusic]);
+  }, [musicEnabled, syncMusic]);
 
   // Multiplayer gameplay is authoritative on the server, so infer its audio
   // events from state changes received over the socket.
   useEffect(() => {
     const previous = previousGameRef.current;
     previousGameRef.current = game;
-    if (!soundEnabled || game.mode === 'solo' || previous.mode !== game.mode) return;
+    if (game.mode === 'solo' || previous.mode !== game.mode) return;
     if (previous.status !== 'playing' || game.status === 'ready') return;
 
     const audio = audioRef.current;
@@ -126,29 +126,24 @@ export function useTetrisAudio(game: GameState) {
     } else if (countLockedCells(game) > countLockedCells(previous)) {
       play(audio.place);
     }
-  }, [game, play, soundEnabled]);
+  }, [game, play]);
 
   const playLockSound = useCallback((linesCleared: number) => {
-    if (!soundEnabled || !audioRef.current) return;
+    if (!audioRef.current) return;
     play(linesCleared > 0 ? audioRef.current.line : audioRef.current.place);
-  }, [play, soundEnabled]);
+  }, [play]);
 
-  const toggleSound = useCallback(() => {
-    const nextEnabled = !soundEnabled;
-    window.localStorage.setItem(SOUND_PREFERENCE_KEY, String(nextEnabled));
-    setSoundEnabled(nextEnabled);
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (nextEnabled) {
-      const target = game.status === 'ready' ? audio.menu : game.status === 'playing' ? audio.game : null;
-      if (target) void target.play().catch(() => undefined);
-    } else {
-      audio.menu.pause();
-      audio.game.pause();
-      audio.place.pause();
-      audio.line.pause();
+  const updateSoundSettings = useCallback((settings: SoundSettings) => {
+    const normalized = normalizeSoundSettings(settings);
+    if (audioRef.current) applySoundSettings(audioRef.current, normalized);
+    setSoundSettings(normalized);
+    try {
+      window.localStorage.setItem(SOUND_SETTINGS_STORAGE_KEY, JSON.stringify(normalized));
+      setSoundSettingsSaveError('');
+    } catch {
+      setSoundSettingsSaveError('Sound changes apply now, but could not be saved on this device.');
     }
-  }, [game.status, soundEnabled]);
+  }, []);
 
-  return { soundEnabled, toggleSound, playLockSound };
+  return { soundSettings, soundSettingsSaveError, updateSoundSettings, playLockSound };
 }

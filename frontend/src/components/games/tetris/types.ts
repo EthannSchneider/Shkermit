@@ -108,8 +108,13 @@ export type TetrisGameController = {
   sendCommand: (command: GameCommand) => void;
   renderedBoards: Record<PlayerId, Map<string, RenderedCell>>;
   returnToMenu: () => void;
-  soundEnabled: boolean;
-  toggleSound: () => void;
+  soundSettings: SoundSettings;
+  soundSettingsSaveError: string;
+  updateSoundSettings: (settings: SoundSettings) => void;
+  soundSettingsOpen: boolean;
+  openSoundSettings: () => void;
+  closeSoundSettings: () => void;
+  previewSound: () => void;
   canAutoPlay: boolean;
   autoEnabled: boolean;
   toggleAuto: () => void;
@@ -122,3 +127,4 @@ export type TetrisGameController = {
 };
 import type { Dispatch, SetStateAction } from 'react';
 import type { AutoPlaySettings } from './auto-settings';
+import type { SoundSettings } from './sound-settings';

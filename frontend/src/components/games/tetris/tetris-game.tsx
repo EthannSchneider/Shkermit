@@ -11,6 +11,7 @@ import { ControllerHelp } from '../controller-help';
 import { handleTetrisController } from './controller-input';
 import { useControllerBindings } from '../../../hooks/use-controller-bindings';
 import { AutoSettingsDialog } from './auto-settings-dialog';
+import { SoundSettingsDialog } from './sound-settings-dialog';
 
 type TetrisGameProps = {
   controller: TetrisGameController;
@@ -36,13 +37,25 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
     sendCommand,
     renderedBoards,
     returnToMenu,
-    soundEnabled,
-    toggleSound,
+    soundSettings,
+    soundSettingsOpen,
+    openSoundSettings,
     canAutoPlay,
     autoEnabled,
     autoSettingsOpen,
     openAutoSettings,
   } = controller;
+  const soundAudible = !soundSettings.muted && soundSettings.masterVolume > 0
+    && (soundSettings.musicVolume > 0 || soundSettings.effectsVolume > 0);
+  const soundButton = (
+    <button
+      type="button"
+      onClick={openSoundSettings}
+      aria-haspopup="dialog"
+      aria-expanded={soundSettingsOpen}
+      className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[9px] text-white/50 transition hover:bg-white/10 hover:text-white/75"
+    ><span aria-hidden="true">{soundAudible ? '🔊' : '🔇'}</span> Sound options</button>
+  );
   const autoButton = canAutoPlay ? (
     <button
       type="button"
@@ -60,7 +73,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
     game.message,
   );
   const controllerStatus = useGamepad({
-    enabled: !bindingAction && !isAntoineLoupOpen && !controllerSettings.settingsOpen && !autoSettingsOpen,
+    enabled: !bindingAction && !isAntoineLoupOpen && !controllerSettings.settingsOpen && !autoSettingsOpen && !soundSettingsOpen,
     bindings: controllerSettings.bindings,
     onCapture: controllerSettings.onCapture,
     repeat: ['left', 'right', 'down'],
@@ -95,15 +108,14 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
   if (game.status === 'ready') {
     return (
       <main className="relative min-h-screen overflow-hidden bg-[#061008] px-4 py-10 text-white sm:px-8">
+        {soundSettingsOpen && <SoundSettingsDialog controller={controller} />}
         <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(rgba(151,255,99,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(151,255,99,.05) 1px, transparent 1px)', backgroundSize: '34px 34px' }} />
         <img src={shkermitImage} alt="" className="pointer-events-none absolute -bottom-20 -right-24 w-110 opacity-15 grayscale" />
         <section className="relative mx-auto max-w-6xl">
           <div className="mb-10 flex items-center justify-between gap-4">
             <a href="/games" className="inline-flex items-center gap-2 text-xs text-lime-200/60 transition hover:text-lime-200">← BACK TO THE ARCADE</a>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={toggleSound} aria-pressed={soundEnabled} className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[9px] text-white/50 transition hover:bg-white/10 hover:text-white/75">
-                {soundEnabled ? '🔊 SOUND ON' : '🔇 SOUND OFF'}
-              </button>
+              {soundButton}
             </div>
           </div>
           <div className="mb-12 max-w-3xl">
@@ -278,17 +290,16 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
     <main className="relative min-h-screen overflow-hidden bg-[#061008] px-3 py-6 text-white sm:px-6 sm:py-8">
       <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 50% 10%, rgba(117,255,76,.16), transparent 38%)' }} />
       {autoSettingsOpen && <AutoSettingsDialog controller={controller} />}
+      {soundSettingsOpen && <SoundSettingsDialog controller={controller} />}
       <div className="relative mx-auto max-w-7xl">
         <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <a href="/games" className="mb-2 block text-[9px] tracking-[0.22em] text-white/35 hover:text-lime-200">← SHKERMIT ARCADE</a>
             <h1 className="text-2xl text-lime-300 sm:text-4xl">SHKERMIT STACKS</h1>
           </div>
-          <div className="flex items-center gap-2 text-[9px]">
+          <div className="flex flex-wrap items-center gap-2 text-[9px]">
             {autoButton}
-            <button type="button" onClick={toggleSound} aria-pressed={soundEnabled} aria-label={soundEnabled ? 'Mute Tetris sound' : 'Enable Tetris sound'} className="mr-2 rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[9px] text-white/50 transition hover:bg-white/10 hover:text-white/75">
-              {soundEnabled ? '🔊' : '🔇'}
-            </button>
+            {soundButton}
             <span className={`h-2 w-2 rounded-full ${game.status === 'playing' ? 'animate-pulse bg-lime-300' : 'bg-yellow-300'}`} />
             <span className="text-white/45">
               {game.mode === 'coop'
