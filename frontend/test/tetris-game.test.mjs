@@ -126,6 +126,59 @@ test('auto continuously replans after movement and gravity and clears a sequence
   assert.ok(lines >= 20, `Expected at least 20 lines; cleared ${lines}`);
 });
 
+test('auto reaches a hard drop without rotation cycles under instant gravity from level 32', () => {
+  // This stack made the S piece alternate clockwise/counterclockwise forever at level 33.
+  const rows = [
+    '###.#..##.', '###.#.####', '##.....###', '##.#####.#',
+    '#####.#.#.', '.####.#.##', '###.#....#', '###..##.#.',
+  ];
+  for (const mode of ['solo', 'coop', 'duel']) {
+    for (const level of [32, 33, 60]) {
+      for (const playStyle of ['balanced', 'safe', 'aggressive']) {
+        for (const lookAhead of [true, false]) {
+          const game = initialGame(mode);
+          const player = mode === 'solo' ? 1 : 2;
+          game.status = 'playing';
+          game.level = level;
+          const board = getPlayerBoard(game, player);
+          for (let index = 0; index < rows.length; index += 1) {
+            board[12 + index] = Array.from({ length: game.cols }, (_, x) => (
+              rows[index][x] === '#' ? { type: 'G', owner: 1 } : null
+            ));
+          }
+          game.next[player] = 'Z';
+          const piece = { ...spawnPiece('S', player, game.cols, mode), x: 4 };
+          game.active = [getGhost(piece, board, [], game.cols)];
+          if (mode !== 'solo') game.active.push(spawnPiece('O', 1, game.cols, mode));
+          const partner = structuredClone(game.active.find((active) => active.player !== player));
+          const seen = new Set();
+          let dropped = false;
+          const context = `${mode}, level ${level}, ${playStyle}, lookAhead=${lookAhead}`;
+          for (let step = 0; step < 40; step += 1) {
+            const active = game.active.find((item) => item.player === player);
+            const key = `${active.x}:${active.y}:${active.rotation}`;
+            assert.equal(seen.has(key), false, `Autopilot must not repeat a position: ${context}`);
+            seen.add(key);
+            const plan = planAutoPlay(game, player, { ...DEFAULT_AUTO_SETTINGS, playStyle, lookAhead });
+            assert.ok(plan?.length, `Autopilot must find a legal placement: ${context}`);
+            const moved = executeAutoAction(game, player, plan[0]);
+            if (plan[0] === 'drop') {
+              dropped = true;
+              assert.ok(getCells(moved).every(({ y }) => y >= 0));
+              break;
+            }
+            // The engine settles the piece between successive autopilot actions at these levels.
+            const settled = getGhost(moved, board, getCollidingPieces(game, player), game.cols);
+            game.active = game.active.map((item) => item.player === player ? settled : item);
+          }
+          assert.equal(dropped, true, `Autopilot must finish without toggling off/on: ${context}`);
+          assert.deepEqual(game.active.find((active) => active.player !== player), partner);
+        }
+      }
+    }
+  }
+});
+
 test('autopilot speed changes action timing and respects the online limit', () => {
   const fast = { ...DEFAULT_AUTO_SETTINGS, actionsPerSecond: 20 };
   const slow = { ...DEFAULT_AUTO_SETTINGS, actionsPerSecond: 1 };

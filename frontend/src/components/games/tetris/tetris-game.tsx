@@ -72,6 +72,11 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
     (message, player) => message.split(`PLAYER ${player}`).join(playerLabel(player)),
     game.message,
   );
+  // Grow by 1% per level from level 33; square cells also push the bottom down.
+  const boardScale = 1 + Math.max(0, game.level - 32) * 0.01;
+  const baseBoardWidth = game.mode === 'duel' ? 300 : game.mode === 'coop' ? 560 : 400;
+  const baseViewportWidth = game.mode === 'duel' ? 44 : game.mode === 'coop' ? 92 : 82;
+  const boardWidth = `min(${baseViewportWidth * boardScale}vw, ${baseBoardWidth * boardScale}px)`;
   const controllerStatus = useGamepad({
     enabled: !bindingAction && !isAntoineLoupOpen && !controllerSettings.settingsOpen && !autoSettingsOpen && !soundSettingsOpen,
     bindings: controllerSettings.bindings,
@@ -342,8 +347,8 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
             )}
           </aside>
 
-          <section className="order-1 flex flex-col items-center xl:order-2">
-            <div className="mb-2 flex w-full items-center justify-between gap-3 text-[9px] text-white/35" style={{ maxWidth: game.mode === 'duel' ? 640 : game.mode === 'coop' ? 560 : 400 }}>
+          <section className="order-1 flex min-w-0 flex-col items-center xl:order-2">
+            <div className="mb-2 flex w-full items-center justify-between gap-3 text-[9px] text-white/35 transition-[max-width] duration-700 ease-out motion-reduce:transition-none" style={{ maxWidth: (game.mode === 'duel' ? 640 : baseBoardWidth) * boardScale }}>
               <span className={game.mode === 'duel' ? 'text-orange-200' : game.mode === 'coop' ? 'text-pink-200' : 'text-lime-200'}>{game.mode === 'duel' ? 'DUEL' : game.mode === 'coop' ? 'CO-OP' : 'SOLO'}</span><span className="text-right">{gameMessage}</span><span />
             </div>
             <div className="relative">
@@ -354,7 +359,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
                       key={player}
                       cells={renderedBoards[player]}
                       cols={game.cols}
-                      width="min(44vw, 300px)"
+                      width={boardWidth}
                       accent={PLAYER_COLORS[player]}
                       label={`${playerLabel(player)}${coop.playerId === player ? ' · YOU' : ' · RIVAL'} · ${game.playerStats[player].score.toLocaleString()} PTS`}
                     />
@@ -364,7 +369,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
                 <BoardGrid
                   cells={renderedBoards[1]}
                   cols={game.cols}
-                  width={game.mode === 'coop' ? 'min(92vw, 560px)' : 'min(82vw, 400px)'}
+                  width={boardWidth}
                   accent="#b5ff4a"
                   label=""
                 />

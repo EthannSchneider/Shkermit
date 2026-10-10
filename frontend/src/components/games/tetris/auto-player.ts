@@ -90,6 +90,7 @@ export function planAutoPlay(game: GameState, player: PlayerId, settings: AutoPl
     .map(({ x, y }) => (y + 4) * game.cols + x));
   const valid = (piece: ActivePiece) => fits(offsets[piece.type][piece.rotation], piece.x, piece.y, board, game.cols, occupied);
   if (!valid(initial)) return null;
+  const instantGravity = game.level >= 32;
   const key = (piece: ActivePiece) => `${piece.x}:${piece.y}:${piece.rotation}`;
   const queue: { piece: ActivePiece; actions: Action[] }[] = [{ piece: initial, actions: [] }];
   const visited = new Set([key(initial)]);
@@ -123,9 +124,13 @@ export function planAutoPlay(game: GameState, player: PlayerId, settings: AutoPl
       ['down', { ...piece, y: piece.y + 1 }],
     ];
     for (const [action, moved] of moves) {
-      if (!moved || moved.y < -4 || !valid(moved) || visited.has(key(moved))) continue;
-      visited.add(key(moved));
-      queue.push({ piece: moved, actions: [...actions, action] });
+      if (!moved || moved.y < -4 || !valid(moved)) continue;
+      // At level 32+, gravity settles every move before the next auto action.
+      // Searching airborne continuations here can make replanning undo rotations forever.
+      const nextPiece = instantGravity ? drop(moved, board, game.cols, occupied) : moved;
+      if (visited.has(key(nextPiece))) continue;
+      visited.add(key(nextPiece));
+      queue.push({ piece: nextPiece, actions: [...actions, action] });
     }
   }
   return bestActions;

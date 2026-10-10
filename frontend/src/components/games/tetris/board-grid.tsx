@@ -14,7 +14,7 @@ export function BoardGrid({ cells, cols, width, accent, label }: BoardGridProps)
     <div>
       {label && <p className="mb-2 text-center text-[9px]" style={{ color: accent }}>{label}</p>}
       <div
-        className="grid overflow-hidden rounded-xl border-2 bg-[#020704] p-1 shadow-[0_0_60px_rgba(118,255,76,0.08)]"
+        className="grid overflow-hidden rounded-xl border-2 bg-[#020704] p-1 shadow-[0_0_60px_rgba(118,255,76,0.08)] transition-[width] duration-700 ease-out motion-reduce:transition-none"
         style={{
           width,
           aspectRatio: `${cols} / ${ROWS}`,
