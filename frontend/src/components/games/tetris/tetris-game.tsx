@@ -10,6 +10,7 @@ import { useGamepad } from '../../../hooks/use-gamepad';
 import { ControllerHelp } from '../controller-help';
 import { handleTetrisController } from './controller-input';
 import { useControllerBindings } from '../../../hooks/use-controller-bindings';
+import { AutoSettingsDialog } from './auto-settings-dialog';
 
 type TetrisGameProps = {
   controller: TetrisGameController;
@@ -39,14 +40,17 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
     toggleSound,
     canAutoPlay,
     autoEnabled,
-    toggleAuto,
+    autoSettingsOpen,
+    openAutoSettings,
   } = controller;
   const autoButton = canAutoPlay ? (
     <button
       type="button"
-      onClick={toggleAuto}
-      aria-pressed={autoEnabled}
-      title={autoEnabled ? 'Stop automatic play' : 'Play automatically'}
+      onClick={openAutoSettings}
+      aria-haspopup="dialog"
+      aria-expanded={autoSettingsOpen}
+      aria-label={`Auto settings, autopilot ${autoEnabled ? 'on' : 'off'}`}
+      title="Autopilot settings"
       className={`rounded-lg border px-3 py-2 text-[9px] transition ${autoEnabled ? 'border-lime-300/50 bg-lime-300/15 text-lime-200' : 'border-white/10 bg-white/4 text-white/35 hover:bg-white/10 hover:text-white/75'}`}
     >auto</button>
   ) : null;
@@ -56,7 +60,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
     game.message,
   );
   const controllerStatus = useGamepad({
-    enabled: !bindingAction && !isAntoineLoupOpen && !controllerSettings.settingsOpen,
+    enabled: !bindingAction && !isAntoineLoupOpen && !controllerSettings.settingsOpen && !autoSettingsOpen,
     bindings: controllerSettings.bindings,
     onCapture: controllerSettings.onCapture,
     repeat: ['left', 'right', 'down'],
@@ -97,7 +101,6 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
           <div className="mb-10 flex items-center justify-between gap-4">
             <a href="/games" className="inline-flex items-center gap-2 text-xs text-lime-200/60 transition hover:text-lime-200">← BACK TO THE ARCADE</a>
             <div className="flex items-center gap-2">
-              {autoButton}
               <button type="button" onClick={toggleSound} aria-pressed={soundEnabled} className="rounded-lg border border-white/10 bg-white/4 px-3 py-2 text-[9px] text-white/50 transition hover:bg-white/10 hover:text-white/75">
                 {soundEnabled ? '🔊 SOUND ON' : '🔇 SOUND OFF'}
               </button>
@@ -274,6 +277,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#061008] px-3 py-6 text-white sm:px-6 sm:py-8">
       <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 50% 10%, rgba(117,255,76,.16), transparent 38%)' }} />
+      {autoSettingsOpen && <AutoSettingsDialog controller={controller} />}
       <div className="relative mx-auto max-w-7xl">
         <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>

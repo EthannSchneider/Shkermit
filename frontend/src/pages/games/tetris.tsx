@@ -50,7 +50,8 @@ import type {
 import { useBestScore } from '../../hooks/use-best-score';
 import { useTetrisAudio } from '../../components/games/tetris/use-tetris-audio';
 import { detectTSpin, getRotationCandidates, scoreClear } from '../../components/games/tetris/tetris-rules';
-import { planAutoPlay } from '../../components/games/tetris/auto-player';
+import { planAutoPlay, shouldAutoFlush } from '../../components/games/tetris/auto-player';
+import { AUTO_SETTINGS_STORAGE_KEY, getAutoActionInterval, getSavedAutoSettings, normalizeAutoSettings, type AutoPlaySettings } from '../../components/games/tetris/auto-settings';
 import { useAuth } from '../../context/auth-context';
 
 const getMessagePlayerNames = (value: unknown): Record<PlayerId, string | null> => {
@@ -70,6 +71,10 @@ function useTetrisGame() {
   const canAutoPlay = Boolean(user?.isAdmin && user.emailVerified && !user.isSuspended);
   const [autoUserId, setAutoUserId] = useState<number | null>(null);
   const [game, setGame] = useState<GameState>(initialGame);
+  const [autoSettings, setAutoSettings] = useState(getSavedAutoSettings);
+  const [autoSettingsSaveError, setAutoSettingsSaveError] = useState('');
+  const [autoSettingsRequested, setAutoSettingsRequested] = useState(false);
+  const autoSettingsOpen = autoSettingsRequested && canAutoPlay && game.status !== 'ready';
   const autoEnabled = canAutoPlay && autoUserId === user?.id && game.status !== 'ready' && game.status !== 'gameover';
   const [coop, setCoop] = useState<CoopState>(initialCoop);
   const soloBest = useBestScore('tetris', 'solo', getSavedBest('solo'));
@@ -99,6 +104,7 @@ function useTetrisGame() {
   }, []);
 
   const publish = useCallback((nextGame: GameState) => {
+    if (nextGame.status === 'ready') setAutoSettingsRequested(false);
     if (nextGame.status === 'gameover' || nextGame.status === 'ready') setAutoUserId(null);
     gameRef.current = nextGame;
     setGame(nextGame);
@@ -450,6 +456,7 @@ function useTetrisGame() {
     resumeToken = '',
     restoredGame?: GameState,
   ) => {
+    setAutoSettingsRequested(false);
     setAutoUserId(null);
     closeCoopSocket(kind !== 'resume');
     if (kind !== 'resume') {
@@ -503,6 +510,7 @@ function useTetrisGame() {
   }, [closeCoopSocket]);
 
   const leaveCoop = useCallback(() => {
+    setAutoSettingsRequested(false);
     setAutoUserId(null);
     closeCoopSocket(true);
     multiplayerSessionRef.current = null;
@@ -515,6 +523,7 @@ function useTetrisGame() {
   }, [closeCoopSocket]);
 
   const startSolo = useCallback(() => {
+    setAutoSettingsRequested(false);
     closeCoopSocket(true);
     multiplayerSessionRef.current = null;
     clearMultiplayerSession();
@@ -550,10 +559,29 @@ function useTetrisGame() {
       return;
     }
     const source = gameRef.current;
-    if (source.status === 'ready') startSolo();
+    if (source.status === 'ready') return;
     if (source.status === 'gameover') sendCommand('restart');
     setAutoUserId(user.id);
-  }, [autoEnabled, canAutoPlay, sendCommand, startSolo, user]);
+  }, [autoEnabled, canAutoPlay, sendCommand, user]);
+
+  const updateAutoSettings = useCallback((settings: AutoPlaySettings) => {
+    if (!canAutoPlay) return;
+    const normalized = normalizeAutoSettings(settings);
+    setAutoSettings(normalized);
+    try {
+      window.localStorage.setItem(AUTO_SETTINGS_STORAGE_KEY, JSON.stringify(normalized));
+      setAutoSettingsSaveError('');
+    } catch {
+      setAutoSettingsSaveError('Settings apply now, but could not be saved on this device.');
+    }
+  }, [canAutoPlay]);
+
+  const openAutoSettings = useCallback(() => {
+    if (!canAutoPlay || gameRef.current.status === 'ready') return;
+    setBindingAction(null);
+    setAutoSettingsRequested(true);
+  }, [canAutoPlay]);
+  const closeAutoSettings = useCallback(() => setAutoSettingsRequested(false), []);
 
   useEffect(() => {
     if (!autoEnabled || game.status !== 'playing') return;
@@ -562,11 +590,15 @@ function useTetrisGame() {
       const player = source.mode === 'solo' ? 1 : localPlayerRef.current;
       if (source.status !== 'playing' || !player || bindingAction) return;
       if (source.mode !== 'solo' && socketRef.current?.readyState !== WebSocket.OPEN) return;
-      const plan = planAutoPlay(source, player);
+      if (shouldAutoFlush(source, autoSettings)) {
+        sendCommand('frog_flush');
+        return;
+      }
+      const plan = planAutoPlay(source, player, autoSettings);
       if (plan?.length) sendAction(player, plan[0]);
-    }, 120);
+    }, getAutoActionInterval(autoSettings, game.mode));
     return () => window.clearInterval(timer);
-  }, [autoEnabled, bindingAction, game.status, sendAction]);
+  }, [autoEnabled, autoSettings, bindingAction, game.mode, game.status, sendAction, sendCommand]);
 
   useEffect(() => {
     socketMessageHandlerRef.current = (message) => {
@@ -751,6 +783,7 @@ function useTetrisGame() {
       if (source.status === 'playing' && player) sendAction(player, action);
     };
     const onKeyDown = (event: KeyboardEvent) => {
+      if (autoSettingsOpen) return;
       const target = event.target;
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable)) return;
       const isModifierKey = [
@@ -787,7 +820,7 @@ function useTetrisGame() {
     const onVisibility = () => { if (document.hidden) clearHeld(); };
     const timer = window.setInterval(() => {
       const target = document.activeElement;
-      if (gameRef.current.status !== 'playing' || !document.hasFocus() || document.hidden
+      if (autoSettingsOpen || gameRef.current.status !== 'playing' || !document.hasFocus() || document.hidden
         || (target instanceof HTMLElement && (target.matches('input, textarea, select') || target.isContentEditable))) {
         clearHeld();
         return;
@@ -810,7 +843,7 @@ function useTetrisGame() {
       window.removeEventListener('blur', clearHeld);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [bindingAction, keyBindings, sendAction, sendCommand]);
+  }, [autoSettingsOpen, bindingAction, keyBindings, sendAction, sendCommand]);
 
   useEffect(() => {
     if (game.status !== 'playing') return;
@@ -927,6 +960,12 @@ function useTetrisGame() {
     canAutoPlay,
     autoEnabled,
     toggleAuto,
+    autoSettings,
+    autoSettingsSaveError,
+    updateAutoSettings,
+    autoSettingsOpen,
+    openAutoSettings,
+    closeAutoSettings,
   };
 }
 

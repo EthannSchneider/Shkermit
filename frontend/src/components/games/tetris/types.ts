@@ -113,5 +113,12 @@ export type TetrisGameController = {
   canAutoPlay: boolean;
   autoEnabled: boolean;
   toggleAuto: () => void;
+  autoSettings: AutoPlaySettings;
+  autoSettingsSaveError: string;
+  updateAutoSettings: (settings: AutoPlaySettings) => void;
+  autoSettingsOpen: boolean;
+  openAutoSettings: () => void;
+  closeAutoSettings: () => void;
 };
 import type { Dispatch, SetStateAction } from 'react';
+import type { AutoPlaySettings } from './auto-settings';

@@ -16,10 +16,13 @@ const constantsUrl = await moduleUrl('../src/components/games/tetris/constants.t
 const logicUrl = await moduleUrl('../src/components/games/tetris/game-logic.ts', { './constants': constantsUrl });
 const storageUrl = await moduleUrl('../src/components/games/tetris/storage.ts', { './constants': constantsUrl, './game-logic': logicUrl });
 const rulesUrl = await moduleUrl('../src/components/games/tetris/tetris-rules.ts');
+const autoSettingsUrl = await moduleUrl('../src/components/games/tetris/auto-settings.ts');
+const { DEFAULT_AUTO_SETTINGS, AUTO_SETTINGS_STORAGE_KEY, getSavedAutoSettings, getAutoActionInterval, normalizeAutoSettings } = await import(autoSettingsUrl);
 const autoUrl = await moduleUrl('../src/components/games/tetris/auto-player.ts', {
   './constants': constantsUrl, './game-logic': logicUrl, './tetris-rules': rulesUrl,
+  './auto-settings': autoSettingsUrl,
 });
-const { planAutoPlay } = await import(autoUrl);
+const { planAutoPlay, shouldAutoFlush } = await import(autoUrl);
 const { detectTSpin, getRotationCandidates, scoreClear } = await import(rulesUrl);
 const serverRules = await import('../../backend/src/services/tetris-rules.js');
 const { LOCK_DELAY, DEFAULT_BINDINGS } = await import(constantsUrl);
@@ -121,6 +124,74 @@ test('auto continuously replans after movement and gravity and clears a sequence
     assert.equal(landed, true, `Piece ${index} must drop without looping`);
   }
   assert.ok(lines >= 20, `Expected at least 20 lines; cleared ${lines}`);
+});
+
+test('autopilot speed changes action timing and respects the online limit', () => {
+  const fast = { ...DEFAULT_AUTO_SETTINGS, actionsPerSecond: 20 };
+  const slow = { ...DEFAULT_AUTO_SETTINGS, actionsPerSecond: 1 };
+  assert.equal(getAutoActionInterval(fast, 'solo'), 50);
+  assert.equal(getAutoActionInterval(slow, 'solo'), 1000);
+  for (const mode of ['coop', 'duel']) {
+    assert.equal(getAutoActionInterval(fast, mode), 100);
+    assert.equal(getAutoActionInterval(slow, mode), 1000);
+  }
+  assert.equal(getAutoActionInterval({ ...fast, actionsPerSecond: 0 }, 'solo'), 1000);
+  assert.equal(getAutoActionInterval({ ...fast, actionsPerSecond: Infinity }, 'solo'), 125);
+});
+
+test('autopilot preferences restore safely from device storage without enabling autopilot', () => {
+  const saved = { actionsPerSecond: 17, playStyle: 'safe', lookAhead: false, autoFlush: true, enabled: true };
+  let value = JSON.stringify(saved);
+  globalThis.window = { localStorage: { getItem: (key) => { assert.equal(key, AUTO_SETTINGS_STORAGE_KEY); return value; } } };
+  try {
+    assert.deepEqual(getSavedAutoSettings(), { actionsPerSecond: 17, playStyle: 'safe', lookAhead: false, autoFlush: true });
+    for (const corrupt of ['invalid json', 'null', '[]', '{}']) {
+      value = corrupt;
+      assert.deepEqual(getSavedAutoSettings(), DEFAULT_AUTO_SETTINGS);
+    }
+    value = JSON.stringify({ actionsPerSecond: -100, playStyle: 'unknown', lookAhead: 'false', autoFlush: 1 });
+    assert.deepEqual(getSavedAutoSettings(), { ...DEFAULT_AUTO_SETTINGS, actionsPerSecond: 1 });
+    globalThis.window.localStorage.getItem = () => { throw new Error('Storage unavailable'); };
+    assert.deepEqual(getSavedAutoSettings(), DEFAULT_AUTO_SETTINGS);
+  } finally {
+    delete globalThis.window;
+  }
+  assert.deepEqual(normalizeAutoSettings({ actionsPerSecond: 900 }), { ...DEFAULT_AUTO_SETTINGS, actionsPerSecond: 20 });
+});
+
+test('all autopilot styles make legal placements with next-piece planning on or off', () => {
+  for (const playStyle of ['balanced', 'safe', 'aggressive']) {
+    for (const lookAhead of [true, false]) {
+      const game = initialGame();
+      game.status = 'playing';
+      game.active = [spawnPiece('I', 1, 10, 'solo')];
+      for (let y = 16; y < 20; y += 1) game.board[y] = Array.from({ length: 10 }, (_, x) => x === 9 ? null : { type: 'G', owner: 1 });
+      const settings = { ...DEFAULT_AUTO_SETTINGS, playStyle, lookAhead };
+      const before = structuredClone(game);
+      const plan = planAutoPlay(game, 1, settings);
+      assert.deepEqual(game, before);
+      assert.ok(plan);
+      for (const action of plan) executeAutoAction(game, 1, action);
+      assert.equal(getCells(game.active[0]).every(({ x, y }) => x === 9 && y >= 16), true);
+    }
+  }
+});
+
+test('automatic Frog Flush only fires when enabled, charged, and the stack is high', () => {
+  const game = initialGame();
+  game.status = 'playing';
+  game.meter = 100;
+  game.board[10][0] = { type: 'G', owner: 1 };
+  const settings = { ...DEFAULT_AUTO_SETTINGS, autoFlush: true };
+  assert.equal(shouldAutoFlush(game, settings), true);
+  assert.equal(shouldAutoFlush({ ...game, mode: 'coop' }, settings), true);
+  assert.equal(shouldAutoFlush(game, DEFAULT_AUTO_SETTINGS), false);
+  assert.equal(shouldAutoFlush({ ...game, meter: 99 }, settings), false);
+  for (const status of ['ready', 'paused', 'gameover']) assert.equal(shouldAutoFlush({ ...game, status }, settings), false);
+  assert.equal(shouldAutoFlush({ ...game, mode: 'duel' }, settings), false);
+  game.board[10][0] = null;
+  game.board[11][0] = { type: 'G', owner: 1 };
+  assert.equal(shouldAutoFlush(game, settings), false);
 });
 
 test('solo gives 500 ms on contact and restarts the delay after a grounded move', () => {

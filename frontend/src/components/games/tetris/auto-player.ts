@@ -2,10 +2,16 @@ import { PIECES, ROWS } from './constants';
 import { getCells, getCollidingPieces, getPlayerBoard, spawnPiece } from './game-logic';
 import { getRotationCandidates } from './tetris-rules';
 import type { Action, ActivePiece, Cell, GameState, PieceName, PlayerId } from './types';
+import { DEFAULT_AUTO_SETTINGS, type AutoPlaySettings, type AutoPlayStyle } from './auto-settings';
 
 type Board = (Cell | null)[][];
 type Placement = { board: Board; value: number };
 type Offset = { x: number; y: number };
+const styleWeights: Record<AutoPlayStyle, { lines: number; height: number; holes: number; bumpiness: number; danger: number }> = {
+  balanced: { lines: 8, height: 0.5, holes: 9, bumpiness: 0.4, danger: 2 },
+  safe: { lines: 6, height: 0.8, holes: 12, bumpiness: 0.65, danger: 4 },
+  aggressive: { lines: 14, height: 0.35, holes: 7, bumpiness: 0.25, danger: 1.5 },
+};
 
 // Cache the 28 shapes once; the search performs many collision checks per move.
 const offsets = Object.fromEntries(PIECES.map((type) => [type,
@@ -29,7 +35,7 @@ function drop(piece: ActivePiece, board: Board, cols: number, occupied?: Set<num
   return { ...piece, y };
 }
 
-function place(board: Board, piece: ActivePiece): Placement | null {
+function place(board: Board, piece: ActivePiece, style: AutoPlayStyle): Placement | null {
   const cells = offsets[piece.type][piece.rotation];
   if (cells.some(({ y }) => piece.y + y < 0)) return null;
   const placed = board.map((row) => [...row]);
@@ -52,28 +58,30 @@ function place(board: Board, piece: ActivePiece): Placement | null {
   const height = heights.reduce((sum, value) => sum + value, 0);
   const bumpiness = heights.slice(1).reduce((sum, value, index) => sum + Math.abs(value - heights[index]), 0);
   const tallest = Math.max(...heights);
+  const weights = styleWeights[style];
   return {
     board: remaining,
-    value: lines * 8 - height * 0.5 - holes * 9 - bumpiness * 0.4 - Math.max(0, tallest - 12) * 2,
+    value: lines * weights.lines - height * weights.height - holes * weights.holes
+      - bumpiness * weights.bumpiness - Math.max(0, tallest - 12) * weights.danger,
   };
 }
 
 // The preview is used to avoid placements that leave the next piece without a safe landing.
-function previewValue(board: Board, type: PieceName, player: PlayerId, game: GameState) {
+function previewValue(board: Board, type: PieceName, player: PlayerId, game: GameState, style: AutoPlayStyle) {
   let best = -10000;
   const spawn = spawnPiece(type, player, game.cols, game.mode);
   for (let rotation = 0; rotation < 4; rotation += 1) {
     for (let x = -3; x < game.cols; x += 1) {
       const piece = { ...spawn, rotation, x };
       if (!fits(offsets[type][rotation], x, piece.y, board, game.cols)) continue;
-      const placement = place(board, drop(piece, board, game.cols));
+      const placement = place(board, drop(piece, board, game.cols), style);
       if (placement) best = Math.max(best, placement.value);
     }
   }
   return best;
 }
 
-export function planAutoPlay(game: GameState, player: PlayerId): Action[] | null {
+export function planAutoPlay(game: GameState, player: PlayerId, settings: AutoPlaySettings = DEFAULT_AUTO_SETTINGS): Action[] | null {
   const initial = game.active.find((piece) => piece.player === player);
   if (game.status !== 'playing' || !initial) return null;
   const board = getPlayerBoard(game, player);
@@ -96,9 +104,10 @@ export function planAutoPlay(game: GameState, player: PlayerId): Action[] | null
     const landingKey = key(dropped);
     if (!landings.has(landingKey)) {
       landings.add(landingKey);
-      const placement = place(board, dropped);
+      const placement = place(board, dropped, settings.playStyle);
       if (placement) {
-        const value = placement.value + previewValue(placement.board, game.next[player], player, game) * 0.6;
+        const value = placement.value + (settings.lookAhead
+          ? previewValue(placement.board, game.next[player], player, game, settings.playStyle) * 0.6 : 0);
         if (value > bestValue || (value === bestValue && actions.length + 1 < (bestActions?.length ?? Infinity))) {
           bestValue = value;
           bestActions = [...actions, 'drop'];
@@ -120,4 +129,9 @@ export function planAutoPlay(game: GameState, player: PlayerId): Action[] | null
     }
   }
   return bestActions;
+}
+
+export function shouldAutoFlush(game: GameState, settings: AutoPlaySettings) {
+  return settings.autoFlush && game.status === 'playing' && game.mode !== 'duel'
+    && game.meter >= 100 && game.board.slice(0, ROWS - 9).some((row) => row.some(Boolean));
 }
