@@ -1,6 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import { supportedLanguages } from '../i18n';
 
+const languageLabels: Record<typeof supportedLanguages[number], string> = {
+  en: 'EN · English',
+  fr: 'FR · Français',
+  it: 'IT · Italiano',
+  de: 'DE · Deutsch',
+};
+
 export default function LanguageSwitcher() {
   const { t, i18n } = useTranslation();
 
@@ -14,7 +21,7 @@ export default function LanguageSwitcher() {
       >
         {supportedLanguages.map((language) => (
           <option key={language} value={language} lang={language}>
-            {language === 'en' ? 'EN · English' : 'FR · Français'}
+            {languageLabels[language]}
           </option>
         ))}
       </select>

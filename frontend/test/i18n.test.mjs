@@ -5,7 +5,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { I18nextProvider } from 'react-i18next';
 import ts from 'typescript';
-import { en, fr, i18n, loadI18n } from './helpers/i18n.mjs';
+import { en, catalogs, i18n, loadI18n, loadI18nModule } from './helpers/i18n.mjs';
 
 async function loadModule(file, dependencies = {}) {
   const source = await readFile(new URL(file, import.meta.url), 'utf8');
@@ -23,17 +23,18 @@ async function loadModule(file, dependencies = {}) {
   return import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
 }
 
-test('English and French catalogs have identical keys and interpolation variables', () => {
-  assert.deepEqual(Object.keys(en), Object.keys(fr));
+test('all language catalogs have identical keys and interpolation variables', () => {
   const placeholders = (text) => [...text.matchAll(/\{\{(\w+)\}\}/g)].map((match) => match[1]).sort();
-  for (const key of Object.keys(en)) {
-    assert.ok(en[key].trim(), `Empty English translation: ${key}`);
-    assert.ok(fr[key].trim(), `Empty French translation: ${key}`);
-    assert.deepEqual(placeholders(en[key]), placeholders(fr[key]), key);
+  for (const [language, catalog] of Object.entries(catalogs)) {
+    assert.deepEqual(Object.keys(en), Object.keys(catalog), language);
+    for (const key of Object.keys(en)) {
+      assert.ok(catalog[key].trim(), `Empty ${language} translation: ${key}`);
+      assert.deepEqual(placeholders(en[key]), placeholders(catalog[key]), `${language}: ${key}`);
+    }
   }
 });
 
-test('every translation key used directly in the interface exists in both catalogs', async () => {
+test('every translation key used directly in the interface exists in all catalogs', async () => {
   const sourceRoot = new URL('../src/', import.meta.url);
   for (const file of await readdir(sourceRoot, { recursive: true })) {
     if (!/\.tsx?$/.test(file)) continue;
@@ -42,7 +43,7 @@ test('every translation key used directly in the interface exists in both catalo
     const visit = (node) => {
       if (ts.isCallExpression(node) && node.expression.getText(ast) === 't' && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) {
         const key = node.arguments[0].text;
-        for (const catalog of [en, fr]) {
+        for (const catalog of Object.values(catalogs)) {
           assert.ok(Object.hasOwn(catalog, key) || Object.hasOwn(catalog, `${key}_one`), `${file}: missing ${key}`);
         }
       }
@@ -66,8 +67,36 @@ test('language changes translate rendered React content, plurals, and interpolat
   assert.equal(i18n.t('accountCount', { count: 2, formattedCount: '2' }), '2 comptes');
   assert.equal(i18n.t('Signed in as {{username}}', { username: 'Ethann' }), 'Connecté en tant que Ethann');
   assert.equal(i18n.t('Invalid email, username, or password.'), 'E-mail, nom d’utilisateur ou mot de passe incorrect.');
+  for (const [language, perSecond, account, accounts, signedIn] of [
+    ['it', 'Al secondo:', '1 account', '2 account', 'Accesso effettuato come Ethann'],
+    ['de', 'Pro Sekunde:', '1 Konto', '2 Konten', 'Angemeldet als Ethann'],
+  ]) {
+    await i18n.changeLanguage(language);
+    assert.ok(render().includes(perSecond));
+    assert.ok(render().includes((12345).toLocaleString(language)));
+    assert.equal(i18n.t('accountCount', { count: 1, formattedCount: '1' }), account);
+    assert.equal(i18n.t('accountCount', { count: 2, formattedCount: '2' }), accounts);
+    assert.equal(i18n.t('accountCount', { count: 1000000, formattedCount: '1000000' }), language === 'it' ? '1000000 account' : '1000000 Konten');
+    assert.equal(i18n.t('Signed in as {{username}}', { username: 'Ethann' }), signedIn);
+  }
   i18n.addResource('en', 'translation', '__fallback_test', 'English fallback');
   assert.equal(i18n.t('__fallback_test'), 'English fallback');
+});
+
+test('language selector offers all supported languages with native labels', async () => {
+  const { supportedLanguages } = await loadI18nModule();
+  assert.deepEqual(supportedLanguages, ['en', 'fr', 'it', 'de']);
+  const dependency = `data:text/javascript;base64,${Buffer.from(`export const supportedLanguages = ${JSON.stringify(supportedLanguages)};`).toString('base64')}`;
+  const { default: LanguageSwitcher } = await loadModule('../src/components/language-switcher.tsx', { '../i18n': dependency });
+  for (const [language, label] of [['en', 'EN · English'], ['fr', 'FR · Français'], ['it', 'IT · Italiano'], ['de', 'DE · Deutsch']]) {
+    await i18n.changeLanguage(language);
+    const markup = renderToStaticMarkup(createElement(I18nextProvider, { i18n }, createElement(LanguageSwitcher)));
+    const selectedOption = markup.match(/<option\b[^>]*selected=""[^>]*>[^<]*<\/option>/)?.[0];
+    assert.ok(selectedOption?.includes(`value="${language}"`));
+    assert.ok(selectedOption?.includes(`lang="${language}"`));
+    assert.ok(selectedOption?.includes(`>${label}</option>`));
+    assert.ok(markup.includes(catalogs[language].Language));
+  }
 });
 
 test('browser detection handles regional languages, persistence, fallback, and unavailable storage', async () => {
@@ -95,9 +124,22 @@ test('browser detection handles regional languages, persistence, fallback, and u
     assert.equal(document.documentElement.dir, 'ltr');
     assert.equal((await loadI18n()).resolvedLanguage, 'en');
 
+    for (const [regional, language] of [['it-CH', 'it'], ['de-CH', 'de']]) {
+      saved.clear();
+      navigator.languages = [regional];
+      navigator.language = regional;
+      const regionalInstance = await loadI18n();
+      assert.equal(regionalInstance.resolvedLanguage, language);
+      assert.equal(document.documentElement.lang, language);
+      assert.equal(saved.get('shkermitLanguage'), regional);
+      navigator.languages = ['en-US'];
+      navigator.language = 'en-US';
+      assert.equal((await loadI18n()).resolvedLanguage, language);
+    }
+
     saved.clear();
-    navigator.languages = ['de-CH'];
-    navigator.language = 'de-CH';
+    navigator.languages = ['es-ES'];
+    navigator.language = 'es-ES';
     assert.equal((await loadI18n()).resolvedLanguage, 'en');
 
     Object.defineProperty(window, 'localStorage', { get() { throw new Error('Storage disabled'); } });
@@ -124,6 +166,18 @@ test('live solo and multiplayer messages translate counts while preserving playe
   assert.equal(localizeTetrisMessage('2 lines cleared • 3x combo', i18n.t, playerLabel), '2 lignes effacées • combo ×3');
   assert.equal(localizeTetrisMessage('PLAYER 2 SENT 4 GARBAGE ROWS!', i18n.t, playerLabel), 'Ethann A ENVOYÉ 4 RANGÉES DE BLOCS !');
   assert.equal(localizeTetrisMessage('FROG FLUSH! 2 danger rows gone.', i18n.t, playerLabel), 'RINÇAGE GRENOUILLE ! 2 rangées dangereuses effacées.');
+  await i18n.changeLanguage('it');
+  assert.equal(localizeTetrisMessage('PLAYER 1 WINS THE DUEL!', i18n.t, playerLabel), 'PLAYER 2 Fan VINCE IL DUELLO!');
+  assert.equal(localizeTetrisMessage('1 line cleared', i18n.t, playerLabel), '1 linea eliminata');
+  assert.equal(localizeTetrisMessage('2 lines cleared • 3x combo', i18n.t, playerLabel), '2 linee eliminate • combo ×3');
+  assert.equal(localizeTetrisMessage('PLAYER 2 SENT 4 GARBAGE ROWS!', i18n.t, playerLabel), 'Ethann HA INVIATO 4 RIGHE DI BLOCCHI!');
+  assert.equal(localizeTetrisMessage('FROG FLUSH! 2 danger rows gone.', i18n.t, playerLabel), 'RISCIACQUO RANA! 2 righe pericolose eliminate.');
+  await i18n.changeLanguage('de');
+  assert.equal(localizeTetrisMessage('PLAYER 1 WINS THE DUEL!', i18n.t, playerLabel), 'PLAYER 2 Fan GEWINNT DAS DUELL!');
+  assert.equal(localizeTetrisMessage('1 line cleared', i18n.t, playerLabel), '1 Linie abgebaut');
+  assert.equal(localizeTetrisMessage('2 lines cleared • 3x combo', i18n.t, playerLabel), '2 Linien abgebaut • 3er-Kombo');
+  assert.equal(localizeTetrisMessage('PLAYER 2 SENT 4 GARBAGE ROWS!', i18n.t, playerLabel), 'Ethann HAT 4 MÜLLREIHEN GESENDET!');
+  assert.equal(localizeTetrisMessage('FROG FLUSH! 2 danger rows gone.', i18n.t, playerLabel), 'FROSCHSPÜLUNG! 2 gefährliche Reihen entfernt.');
   await i18n.changeLanguage('en');
   assert.equal(localizeTetrisMessage('2 lines cleared', i18n.t, playerLabel), '2 lines cleared');
 });

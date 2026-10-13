@@ -3,8 +3,10 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
 import en from './locales/en.json';
 import fr from './locales/fr.json';
+import it from './locales/it.json';
+import de from './locales/de.json';
 
-export const supportedLanguages = ['en', 'fr'] as const;
+export const supportedLanguages = ['en', 'fr', 'it', 'de'] as const;
 
 function updateDocumentLanguage(language: string) {
   if (typeof document !== 'undefined') {
@@ -19,7 +21,12 @@ void i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources: { en: { translation: en }, fr: { translation: fr } },
+    resources: {
+      en: { translation: en },
+      fr: { translation: fr },
+      it: { translation: it },
+      de: { translation: de },
+    },
     supportedLngs: [...supportedLanguages],
     fallbackLng: 'en',
     load: 'languageOnly',
