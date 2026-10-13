@@ -5,12 +5,13 @@ import en from './locales/en.json';
 import fr from './locales/fr.json';
 import it from './locales/it.json';
 import de from './locales/de.json';
+import lolcat from './locales/en-x-lolcat.json';
 
-export const supportedLanguages = ['en', 'fr', 'it', 'de'] as const;
+export const supportedLanguages = ['en', 'fr', 'it', 'de', 'en-x-lolcat'] as const;
 
 function updateDocumentLanguage(language: string) {
   if (typeof document !== 'undefined') {
-    document.documentElement.lang = language.split('-')[0];
+    document.documentElement.lang = i18n.resolvedLanguage ?? language.split('-')[0];
     document.documentElement.dir = i18n.dir(language);
   }
 }
@@ -26,10 +27,12 @@ void i18n
       fr: { translation: fr },
       it: { translation: it },
       de: { translation: de },
+      'en-x-lolcat': { translation: lolcat },
     },
     supportedLngs: [...supportedLanguages],
     fallbackLng: 'en',
-    load: 'languageOnly',
+    // Keep the private English variant so Lolcat also works with Intl formatting.
+    load: 'all',
     initAsync: false,
     // English phrases are the keys, including punctuation.
     keySeparator: false,
@@ -39,6 +42,10 @@ void i18n
       order: ['localStorage', 'navigator'],
       lookupLocalStorage: 'shkermitLanguage',
       caches: ['localStorage'],
+      convertDetectedLanguage: (language) => {
+        const normalized = language.toLowerCase();
+        return normalized === 'en-x-lolcat' ? normalized : normalized.split('-')[0];
+      },
     },
   });
 

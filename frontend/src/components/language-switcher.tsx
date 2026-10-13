@@ -6,6 +6,7 @@ const languageLabels: Record<typeof supportedLanguages[number], string> = {
   fr: 'FR · Français',
   it: 'IT · Italiano',
   de: 'DE · Deutsch',
+  'en-x-lolcat': 'LOL · Lolcat',
 };
 
 export default function LanguageSwitcher() {

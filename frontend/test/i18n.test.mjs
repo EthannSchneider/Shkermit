@@ -79,16 +79,28 @@ test('language changes translate rendered React content, plurals, and interpolat
     assert.equal(i18n.t('accountCount', { count: 1000000, formattedCount: '1000000' }), language === 'it' ? '1000000 account' : '1000000 Konten');
     assert.equal(i18n.t('Signed in as {{username}}', { username: 'Ethann' }), signedIn);
   }
+  await i18n.changeLanguage('en-x-lolcat');
+  assert.equal(i18n.resolvedLanguage, 'en-x-lolcat');
+  assert.ok(render().includes('PER SEKUND:'));
+  assert.ok(render().includes((12345).toLocaleString('en')));
+  assert.equal(new Date('2026-10-13T12:00:00Z').toLocaleDateString(i18n.resolvedLanguage), new Date('2026-10-13T12:00:00Z').toLocaleDateString('en'));
+  assert.equal(i18n.t('accountCount', { count: 1, formattedCount: '1' }), '1 ACCAUNT');
+  assert.equal(i18n.t('accountCount', { count: 2, formattedCount: '2' }), '2 ACCAUNTS');
+  assert.equal(i18n.t('accountCount', { count: 0, formattedCount: '0' }), '0 ACCAUNTS');
+  assert.equal(i18n.t('accountCount', { count: 1000000, formattedCount: '1,000,000' }), '1,000,000 ACCAUNTS');
+  assert.equal(i18n.t('Signed in as {{username}}', { username: 'MixedCase_é' }), 'U IZ LOGGD IN AS MixedCase_é');
+  assert.equal(i18n.t('Let’s play'), 'I CAN HAZ GAEMS?');
+  assert.equal(i18n.t('Invalid email, username, or password.'), 'OH NOES! E-MAIL, USERNAEM, OR PAWSWORD IZ WRONG.');
   i18n.addResource('en', 'translation', '__fallback_test', 'English fallback');
   assert.equal(i18n.t('__fallback_test'), 'English fallback');
 });
 
 test('language selector offers all supported languages with native labels', async () => {
   const { supportedLanguages } = await loadI18nModule();
-  assert.deepEqual(supportedLanguages, ['en', 'fr', 'it', 'de']);
+  assert.deepEqual(supportedLanguages, ['en', 'fr', 'it', 'de', 'en-x-lolcat']);
   const dependency = `data:text/javascript;base64,${Buffer.from(`export const supportedLanguages = ${JSON.stringify(supportedLanguages)};`).toString('base64')}`;
   const { default: LanguageSwitcher } = await loadModule('../src/components/language-switcher.tsx', { '../i18n': dependency });
-  for (const [language, label] of [['en', 'EN · English'], ['fr', 'FR · Français'], ['it', 'IT · Italiano'], ['de', 'DE · Deutsch']]) {
+  for (const [language, label] of [['en', 'EN · English'], ['fr', 'FR · Français'], ['it', 'IT · Italiano'], ['de', 'DE · Deutsch'], ['en-x-lolcat', 'LOL · Lolcat']]) {
     await i18n.changeLanguage(language);
     const markup = renderToStaticMarkup(createElement(I18nextProvider, { i18n }, createElement(LanguageSwitcher)));
     const selectedOption = markup.match(/<option\b[^>]*selected=""[^>]*>[^<]*<\/option>/)?.[0];
@@ -109,7 +121,7 @@ test('browser detection handles regional languages, persistence, fallback, and u
     setItem: (key, value) => saved.set(key, value),
     removeItem: (key) => saved.delete(key),
   };
-  const navigator = { languages: ['fr-CH'], language: 'fr-CH' };
+  const navigator = { languages: ['fr-CH', 'en-US'], language: 'fr-CH' };
   const window = { localStorage: storage, navigator };
   Object.defineProperty(globalThis, 'window', { configurable: true, value: window });
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: navigator });
@@ -124,14 +136,22 @@ test('browser detection handles regional languages, persistence, fallback, and u
     assert.equal(document.documentElement.dir, 'ltr');
     assert.equal((await loadI18n()).resolvedLanguage, 'en');
 
+    await detected.changeLanguage('en-x-lolcat');
+    assert.equal(saved.get('shkermitLanguage'), 'en-x-lolcat');
+    assert.equal(document.documentElement.lang, 'en-x-lolcat');
+    assert.equal(document.documentElement.dir, 'ltr');
+    navigator.languages = ['en-US'];
+    navigator.language = 'en-US';
+    assert.equal((await loadI18n()).resolvedLanguage, 'en-x-lolcat');
+
     for (const [regional, language] of [['it-CH', 'it'], ['de-CH', 'de']]) {
       saved.clear();
-      navigator.languages = [regional];
+      navigator.languages = [regional, 'en-US'];
       navigator.language = regional;
       const regionalInstance = await loadI18n();
       assert.equal(regionalInstance.resolvedLanguage, language);
       assert.equal(document.documentElement.lang, language);
-      assert.equal(saved.get('shkermitLanguage'), regional);
+      assert.equal(saved.get('shkermitLanguage'), language);
       navigator.languages = ['en-US'];
       navigator.language = 'en-US';
       assert.equal((await loadI18n()).resolvedLanguage, language);
@@ -147,6 +167,8 @@ test('browser detection handles regional languages, persistence, fallback, and u
     navigator.language = 'fr-FR';
     const withoutStorage = await loadI18n();
     assert.equal(withoutStorage.resolvedLanguage, 'fr');
+    await withoutStorage.changeLanguage('en-x-lolcat');
+    assert.equal(withoutStorage.resolvedLanguage, 'en-x-lolcat');
     await withoutStorage.changeLanguage('en');
     assert.equal(withoutStorage.resolvedLanguage, 'en');
   } finally {
@@ -178,6 +200,12 @@ test('live solo and multiplayer messages translate counts while preserving playe
   assert.equal(localizeTetrisMessage('2 lines cleared • 3x combo', i18n.t, playerLabel), '2 Linien abgebaut • 3er-Kombo');
   assert.equal(localizeTetrisMessage('PLAYER 2 SENT 4 GARBAGE ROWS!', i18n.t, playerLabel), 'Ethann HAT 4 MÜLLREIHEN GESENDET!');
   assert.equal(localizeTetrisMessage('FROG FLUSH! 2 danger rows gone.', i18n.t, playerLabel), 'FROSCHSPÜLUNG! 2 gefährliche Reihen entfernt.');
+  await i18n.changeLanguage('en-x-lolcat');
+  assert.equal(localizeTetrisMessage('PLAYER 1 WINS THE DUEL!', i18n.t, playerLabel), 'PLAYER 2 Fan WINZ TEH DOOL!');
+  assert.equal(localizeTetrisMessage('1 line cleared', i18n.t, playerLabel), '1 LINE CLEARD');
+  assert.equal(localizeTetrisMessage('2 lines cleared • 3x combo', i18n.t, playerLabel), '2 LINES CLEARD • 3x COMBO. NICE!');
+  assert.equal(localizeTetrisMessage('PLAYER 2 SENT 4 GARBAGE ROWS!', i18n.t, playerLabel), 'Ethann SENT 4 GARBAGE ROWS! OH NOES!');
+  assert.equal(localizeTetrisMessage('FROG FLUSH! 2 danger rows gone.', i18n.t, playerLabel), 'FROGGO FLUSH! 2 DANGER ROWS IZ GONE.');
   await i18n.changeLanguage('en');
   assert.equal(localizeTetrisMessage('2 lines cleared', i18n.t, playerLabel), '2 lines cleared');
 });

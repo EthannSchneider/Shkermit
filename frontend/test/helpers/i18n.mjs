@@ -5,14 +5,14 @@ export const en = JSON.parse(await readFile(new URL('../../src/i18n/locales/en.j
 export const fr = JSON.parse(await readFile(new URL('../../src/i18n/locales/fr.json', import.meta.url), 'utf8'));
 export const it = JSON.parse(await readFile(new URL('../../src/i18n/locales/it.json', import.meta.url), 'utf8'));
 export const de = JSON.parse(await readFile(new URL('../../src/i18n/locales/de.json', import.meta.url), 'utf8'));
-export const catalogs = { en, fr, it, de };
+export const lolcat = JSON.parse(await readFile(new URL('../../src/i18n/locales/en-x-lolcat.json', import.meta.url), 'utf8'));
+export const catalogs = { en, fr, it, de, 'en-x-lolcat': lolcat };
 
 export async function loadI18nModule() {
   let source = await readFile(new URL('../../src/i18n/index.ts', import.meta.url), 'utf8');
   source = source.replace("import i18n from 'i18next';", "import { createInstance } from 'i18next'; const i18n = createInstance();");
-  for (const [language, catalog] of Object.entries(catalogs)) {
-    source = source.replace(`import ${language} from './locales/${language}.json';`, `const ${language} = ${JSON.stringify(catalog)};`);
-  }
+  source = source.replace(/import (\w+) from '\.\/locales\/([^']+)\.json';/g,
+    (_, name, language) => `const ${name} = ${JSON.stringify(catalogs[language])};`);
   let { outputText } = ts.transpileModule(source, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
   });
