@@ -6,8 +6,9 @@ import fr from './locales/fr.json';
 import it from './locales/it.json';
 import de from './locales/de.json';
 import lolcat from './locales/en-x-lolcat.json';
+import enchanting from './locales/en-x-enchant.json';
 
-export const supportedLanguages = ['en', 'fr', 'it', 'de', 'en-x-lolcat'] as const;
+export const supportedLanguages = ['en', 'fr', 'it', 'de', 'en-x-lolcat', 'en-x-enchant'] as const;
 
 function updateDocumentLanguage(language: string) {
   if (typeof document !== 'undefined') {
@@ -28,10 +29,11 @@ void i18n
       it: { translation: it },
       de: { translation: de },
       'en-x-lolcat': { translation: lolcat },
+      'en-x-enchant': { translation: enchanting },
     },
     supportedLngs: [...supportedLanguages],
     fallbackLng: 'en',
-    // Keep the private English variant so Lolcat also works with Intl formatting.
+    // Keep private English variants compatible with Intl number and date formatting.
     load: 'all',
     initAsync: false,
     // English phrases are the keys, including punctuation.
@@ -44,7 +46,9 @@ void i18n
       caches: ['localStorage'],
       convertDetectedLanguage: (language) => {
         const normalized = language.toLowerCase();
-        return normalized === 'en-x-lolcat' ? normalized : normalized.split('-')[0];
+        return supportedLanguages.includes(normalized as typeof supportedLanguages[number])
+          ? normalized
+          : normalized.split('-')[0];
       },
     },
   });

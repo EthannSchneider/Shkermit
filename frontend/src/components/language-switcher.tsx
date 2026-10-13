@@ -7,6 +7,7 @@ const languageLabels: Record<typeof supportedLanguages[number], string> = {
   it: 'IT · Italiano',
   de: 'DE · Deutsch',
   'en-x-lolcat': 'LOL · Lolcat',
+  'en-x-enchant': 'SGA · Enchanting Table',
 };
 
 export default function LanguageSwitcher() {

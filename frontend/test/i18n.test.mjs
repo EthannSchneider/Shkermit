@@ -5,6 +5,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { I18nextProvider } from 'react-i18next';
 import ts from 'typescript';
+import { parse } from 'three/examples/jsm/libs/opentype.module.js';
 import { en, catalogs, i18n, loadI18n, loadI18nModule } from './helpers/i18n.mjs';
 
 async function loadModule(file, dependencies = {}) {
@@ -53,6 +54,23 @@ test('every translation key used directly in the interface exists in all catalog
   }
 });
 
+test('enchanting translations use the bundled alphabet and preserve shortcut labels', async () => {
+  const catalog = catalogs['en-x-enchant'];
+  assert.equal(catalog.Home, '\ueb47\ueb4e\ueb4c\ueb44');
+  for (const value of Object.values(catalog)) {
+    const text = value.replace(/\{\{\w+\}\}/g, '');
+    if (!/^[A-Z]$/.test(text)) assert.ok(!/[A-Za-z]/.test(text), `Unencoded enchanting text: ${text}`);
+  }
+  assert.equal(catalog.P, 'P');
+  const bytes = await readFile(new URL('../src/assets/fonts/Monocraft.ttf', import.meta.url));
+  const font = parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), { lowMemory: true });
+  for (let codepoint = 0xEB40; codepoint <= 0xEB59; codepoint++) {
+    const glyph = font.charToGlyph(String.fromCharCode(codepoint));
+    assert.notEqual(glyph.index, 0, `Missing glyph: ${codepoint.toString(16)}`);
+    assert.ok(glyph.path.commands.length > 0);
+  }
+});
+
 test('language changes translate rendered React content, plurals, and interpolated values', async () => {
   const { default: Stats } = await loadModule('../src/components/games/clicker/stats.tsx');
   const render = () => renderToStaticMarkup(createElement(I18nextProvider, { i18n },
@@ -91,16 +109,27 @@ test('language changes translate rendered React content, plurals, and interpolat
   assert.equal(i18n.t('Signed in as {{username}}', { username: 'MixedCase_é' }), 'U IZ LOGGD IN AS MixedCase_é');
   assert.equal(i18n.t('Let’s play'), 'I CAN HAZ GAEMS?');
   assert.equal(i18n.t('Invalid email, username, or password.'), 'OH NOES! E-MAIL, USERNAEM, OR PAWSWORD IZ WRONG.');
+  await i18n.changeLanguage('en-x-enchant');
+  assert.equal(i18n.resolvedLanguage, 'en-x-enchant');
+  assert.ok(render().includes(catalogs['en-x-enchant']['Per second:']));
+  assert.ok(render().includes((12345).toLocaleString('en')));
+  assert.equal(new Date('2026-10-13T12:00:00Z').toLocaleDateString(i18n.resolvedLanguage), new Date('2026-10-13T12:00:00Z').toLocaleDateString('en'));
+  assert.equal(i18n.t('Signed in as {{username}}', { username: 'MixedCase_é' }), `${catalogs['en-x-enchant']['Signed in as']} MixedCase_é`);
+  for (const count of [0, 1, 2, 1000000]) {
+    const key = count === 1 ? 'accountCount_one' : 'accountCount_other';
+    const formattedCount = count.toLocaleString('en');
+    assert.equal(i18n.t('accountCount', { count, formattedCount }), catalogs['en-x-enchant'][key].replace('{{formattedCount}}', formattedCount));
+  }
   i18n.addResource('en', 'translation', '__fallback_test', 'English fallback');
   assert.equal(i18n.t('__fallback_test'), 'English fallback');
 });
 
 test('language selector offers all supported languages with native labels', async () => {
   const { supportedLanguages } = await loadI18nModule();
-  assert.deepEqual(supportedLanguages, ['en', 'fr', 'it', 'de', 'en-x-lolcat']);
+  assert.deepEqual(supportedLanguages, ['en', 'fr', 'it', 'de', 'en-x-lolcat', 'en-x-enchant']);
   const dependency = `data:text/javascript;base64,${Buffer.from(`export const supportedLanguages = ${JSON.stringify(supportedLanguages)};`).toString('base64')}`;
   const { default: LanguageSwitcher } = await loadModule('../src/components/language-switcher.tsx', { '../i18n': dependency });
-  for (const [language, label] of [['en', 'EN · English'], ['fr', 'FR · Français'], ['it', 'IT · Italiano'], ['de', 'DE · Deutsch'], ['en-x-lolcat', 'LOL · Lolcat']]) {
+  for (const [language, label] of [['en', 'EN · English'], ['fr', 'FR · Français'], ['it', 'IT · Italiano'], ['de', 'DE · Deutsch'], ['en-x-lolcat', 'LOL · Lolcat'], ['en-x-enchant', 'SGA · Enchanting Table']]) {
     await i18n.changeLanguage(language);
     const markup = renderToStaticMarkup(createElement(I18nextProvider, { i18n }, createElement(LanguageSwitcher)));
     const selectedOption = markup.match(/<option\b[^>]*selected=""[^>]*>[^<]*<\/option>/)?.[0];
@@ -144,6 +173,14 @@ test('browser detection handles regional languages, persistence, fallback, and u
     navigator.language = 'en-US';
     assert.equal((await loadI18n()).resolvedLanguage, 'en-x-lolcat');
 
+    await detected.changeLanguage('en-x-enchant');
+    assert.equal(saved.get('shkermitLanguage'), 'en-x-enchant');
+    assert.equal(document.documentElement.lang, 'en-x-enchant');
+    assert.equal(document.documentElement.dir, 'ltr');
+    assert.equal((await loadI18n()).resolvedLanguage, 'en-x-enchant');
+    await detected.changeLanguage('en');
+    assert.equal((await loadI18n()).resolvedLanguage, 'en');
+
     for (const [regional, language] of [['it-CH', 'it'], ['de-CH', 'de']]) {
       saved.clear();
       navigator.languages = [regional, 'en-US'];
@@ -169,6 +206,8 @@ test('browser detection handles regional languages, persistence, fallback, and u
     assert.equal(withoutStorage.resolvedLanguage, 'fr');
     await withoutStorage.changeLanguage('en-x-lolcat');
     assert.equal(withoutStorage.resolvedLanguage, 'en-x-lolcat');
+    await withoutStorage.changeLanguage('en-x-enchant');
+    assert.equal(withoutStorage.resolvedLanguage, 'en-x-enchant');
     await withoutStorage.changeLanguage('en');
     assert.equal(withoutStorage.resolvedLanguage, 'en');
   } finally {
@@ -206,6 +245,10 @@ test('live solo and multiplayer messages translate counts while preserving playe
   assert.equal(localizeTetrisMessage('2 lines cleared • 3x combo', i18n.t, playerLabel), '2 LINES CLEARD • 3x COMBO. NICE!');
   assert.equal(localizeTetrisMessage('PLAYER 2 SENT 4 GARBAGE ROWS!', i18n.t, playerLabel), 'Ethann SENT 4 GARBAGE ROWS! OH NOES!');
   assert.equal(localizeTetrisMessage('FROG FLUSH! 2 danger rows gone.', i18n.t, playerLabel), 'FROGGO FLUSH! 2 DANGER ROWS IZ GONE.');
+  await i18n.changeLanguage('en-x-enchant');
+  assert.equal(localizeTetrisMessage('PLAYER 1 WINS THE DUEL!', i18n.t, playerLabel), catalogs['en-x-enchant']['{{player}} WINS THE DUEL!'].replace('{{player}}', 'PLAYER 2 Fan'));
+  assert.equal(localizeTetrisMessage('1 line cleared', i18n.t, playerLabel), catalogs['en-x-enchant'].clearedLines_one.replace('{{count}}', '1'));
+  assert.equal(localizeTetrisMessage('2 lines cleared', i18n.t, playerLabel), catalogs['en-x-enchant'].clearedLines_other.replace('{{count}}', '2'));
   await i18n.changeLanguage('en');
   assert.equal(localizeTetrisMessage('2 lines cleared', i18n.t, playerLabel), '2 lines cleared');
 });

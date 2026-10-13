@@ -6,7 +6,8 @@ export const fr = JSON.parse(await readFile(new URL('../../src/i18n/locales/fr.j
 export const it = JSON.parse(await readFile(new URL('../../src/i18n/locales/it.json', import.meta.url), 'utf8'));
 export const de = JSON.parse(await readFile(new URL('../../src/i18n/locales/de.json', import.meta.url), 'utf8'));
 export const lolcat = JSON.parse(await readFile(new URL('../../src/i18n/locales/en-x-lolcat.json', import.meta.url), 'utf8'));
-export const catalogs = { en, fr, it, de, 'en-x-lolcat': lolcat };
+export const enchanting = JSON.parse(await readFile(new URL('../../src/i18n/locales/en-x-enchant.json', import.meta.url), 'utf8'));
+export const catalogs = { en, fr, it, de, 'en-x-lolcat': lolcat, 'en-x-enchant': enchanting };
 
 export async function loadI18nModule() {
   let source = await readFile(new URL('../../src/i18n/index.ts', import.meta.url), 'utf8');
