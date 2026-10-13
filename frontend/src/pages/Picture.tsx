@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/auth-context";
@@ -5,6 +6,7 @@ import { api, type Picture as PictureRecord } from "../lib/api";
 import { pictureSource } from "../lib/picture-assets";
 
 export default function Picture() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [pictures, setPictures] = useState<PictureRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,16 +31,16 @@ export default function Picture() {
     <main className="gallery-page">
       <div className="gallery-heading">
         <div>
-          <p className="auth-eyebrow">The collection</p>
-          <h1>Shkermit pictures</h1>
+          <p className="auth-eyebrow">{t("The collection")}</p>
+          <h1>{t("Shkermit pictures")}</h1>
         </div>
-        {user?.isAdmin && <Link className="account-cta" to="/admin/pictures">Manage pictures</Link>}
+        {user?.isAdmin && <Link className="account-cta" to="/admin/pictures">{t("Manage pictures")}</Link>}
       </div>
 
-      {loading && <p className="gallery-status">Loading pictures…</p>}
-      {error && <div className="form-message form-error" role="alert">{error}</div>}
+      {loading && <p className="gallery-status">{t("Loading pictures…")}</p>}
+      {error && <div className="form-message form-error" role="alert">{t(error)}</div>}
       {!loading && !error && pictures.length === 0 && (
-        <p className="gallery-status">No pictures have been published yet.</p>
+        <p className="gallery-status">{t("No pictures have been published yet.")}</p>
       )}
       <div className="picture-grid">
         {pictures.map((picture) => (

@@ -72,6 +72,8 @@ export function rebindControllerAction(bindings: GamepadBindings, action: Gamepa
   return next;
 }
 
-export const controllerBindingLabel = (bindings: GamepadBindings, action: GamepadControl) => (
-  bindings[action].map((input) => CONTROLLER_INPUT_LABELS[input]).join(' or ')
-);
+export const controllerBindingLabel = (
+  bindings: GamepadBindings,
+  action: GamepadControl,
+  translate: (key: string) => string = (key) => key,
+) => bindings[action].map((input) => translate(CONTROLLER_INPUT_LABELS[input])).join(translate(' or '));

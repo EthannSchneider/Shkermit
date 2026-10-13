@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/auth-context";
@@ -6,6 +7,7 @@ import { api } from "../lib/api";
 type VerificationState = "waiting" | "verifying" | "verified" | "error";
 
 export default function VerifyEmail() {
+  const { t } = useTranslation();
   const { user, verifyEmail } = useAuth();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
@@ -54,30 +56,28 @@ export default function VerifyEmail() {
   return (
     <main className="auth-page">
       <section className="auth-card">
-        <p className="auth-eyebrow">Email confirmation</p>
-        <h1>{state === "verified" ? "Email confirmed" : "Check your inbox"}</h1>
+        <p className="auth-eyebrow">{t("Email confirmation")}</p>
+        <h1>{state === "verified" ? t("Email confirmed") : t("Check your inbox")}</h1>
         <div
           className={`form-message ${state === "error" ? "form-error" : "form-success"}`}
           role="status"
         >
-          {message}
+          {t(message)}
         </div>
 
         {state === "verified" ? (
-          <Link className="primary-button button-link" to="/account">Continue to your account</Link>
+          <Link className="primary-button button-link" to="/account">{t("Continue to your account")}</Link>
         ) : state !== "verifying" ? (
           <form onSubmit={resend}>
-            <label>
-              Email address
-              <input name="email" type="email" defaultValue={initialEmail} autoComplete="email" required />
+            <label> {t("Email address")} <input name="email" type="email" defaultValue={initialEmail} autoComplete="email" required />
             </label>
             <button className="primary-button" disabled={resending}>
-              {resending ? "Sending…" : "Resend confirmation email"}
+              {resending ? t("Sending…") : t("Resend confirmation email")}
             </button>
           </form>
         ) : null}
 
-        <p className="auth-switch"><Link to="/login">Back to login</Link></p>
+        <p className="auth-switch"><Link to="/login">{t("Back to login")}</Link></p>
       </section>
     </main>
   );

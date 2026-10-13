@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 type Game = {
@@ -40,31 +41,26 @@ const games: Game[] = [
 ];
 
 export default function Games() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-linear-to-b from-purple-900 via-indigo-900 to-black text-white p-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-8 text-transparent bg-clip-text bg-linear-to-b from-purple-400 to-pink-500">
-          🎮 Game Haven
-        </h1>
+        <h1 className="text-4xl font-bold text-center mb-8 text-transparent bg-clip-text bg-linear-to-b from-purple-400 to-pink-500"> {t("🎮 Game Haven")} </h1>
 
         <div className="text-center mb-12">
-          <p className="text-xl text-gray-300">
-            Welcome to our collection of Shkermit-inspired games! Choose a game below to start playing.
-          </p>
+          <p className="text-xl text-gray-300"> {t("Welcome to our collection of Shkermit-inspired games! Choose a game below to start playing.")} </p>
           <button
             type="button"
             onClick={() => navigate('/games/stats')}
             className="mt-6 rounded-xl border border-yellow-300/25 bg-yellow-300/10 px-6 py-3 text-sm font-bold text-yellow-200 transition hover:-translate-y-0.5 hover:bg-yellow-300/20"
-          >
-            🏆 VIEW BEST SCORE BOARDS
-          </button>
+          > {t("🏆 VIEW BEST SCORE BOARDS")} </button>
         </div>
 
         <div className="mt-16 text-center">
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 inline-block max-w-2xl">
-            <h3 className="text-2xl font-bold mb-4 text-purple-300">🎮 Available Games</h3>
+            <h3 className="text-2xl font-bold mb-4 text-purple-300">{t("🎮 Available Games")}</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {games.map((game) => (
                 <div
@@ -75,9 +71,9 @@ export default function Games() {
                   className="bg-white/5 rounded-xl p-4 cursor-pointer hover:bg-white/10 transition-colors text-center flex flex-col justify-between h-40 w-40"
                 >
                   <div className="text-3xl mb-2">{game.icon}</div>
-                  <div className="text-sm font-bold">{game.name}</div>
+                  <div className="text-sm font-bold">{t(game.name)}</div>
                   <div className={`text-xs font-bold mt-2 px-3 py-1 rounded ${game.available ? 'bg-purple-600' : 'bg-yellow-600'}`}>
-                    {game.available ? 'Play Now' : 'Planned'}
+                    {game.available ? t("Play Now") : t("Planned")}
                   </div>
                 </div>
               ))}
@@ -86,9 +82,7 @@ export default function Games() {
         </div>
 
         <div className="mt-12 text-center">
-          <p className="text-gray-400">
-            More games coming soon! Stay tuned! 🚀
-          </p>
+          <p className="text-gray-400"> {t("More games coming soon! Stay tuned! 🚀")} </p>
         </div>
       </div>
     </div>

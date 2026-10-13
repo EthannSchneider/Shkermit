@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import logo from "../assets/img/1 ShkermitRTX.png";
@@ -20,6 +21,7 @@ function AccountLinks({
   onLogout,
   onNavigate,
 }: AccountLinksProps) {
+  const { t } = useTranslation();
   const linkClass = mobile
     ? "block text-lg text-white hover:underline"
     : "text-lg text-white hover:underline";
@@ -32,7 +34,7 @@ function AccountLinks({
           {username}
         </Link>
         <button className={`${linkClass} cursor-pointer`} onClick={onLogout} disabled={loggingOut}>
-          {loggingOut ? "Logging out…" : "Logout"}
+          {loggingOut ? t("Logging out…") : t("Logout")}
         </button>
       </>
     );
@@ -40,13 +42,14 @@ function AccountLinks({
 
   return (
     <>
-      <Link to="/login" className={linkClass} onClick={onNavigate}>Login</Link>
-      <Link to="/register" className={`${linkClass} account-cta`} onClick={onNavigate}>Register</Link>
+      <Link to="/login" className={linkClass} onClick={onNavigate}>{t("Login")}</Link>
+      <Link to="/register" className={`${linkClass} account-cta`} onClick={onNavigate}>{t("Register")}</Link>
     </>
   );
 }
 
 export default function Header() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const { user, loading, logout } = useAuth();
@@ -76,10 +79,10 @@ export default function Header() {
         <div className="flex items-center gap-3">
           <img
             src={logo}
-            alt="Shkermit Logo"
+            alt={t("Shkermit Logo")}
             className="h-10 w-10 rounded-full"
           />
-          <h1 className="text-2xl font-bold">Shkermit</h1>
+          <h1 className="text-2xl font-bold">{t("Shkermit")}</h1>
         </div>
       </Link>
 
@@ -92,7 +95,7 @@ export default function Header() {
                 to={item.href}
                 className="text-lg text-white hover:underline"
               >
-                {item.name}
+                {t(item.name)}
               </Link>
             </li>
           ))}
@@ -112,7 +115,7 @@ export default function Header() {
       <button
         className="md:hidden p-2 rounded hover:bg-green-800 focus:outline-none"
         onClick={() => setOpen((s) => !s)}
-        aria-label="Toggle menu"
+        aria-label={t("Toggle menu")}
         aria-expanded={open}
       >
         {open ? (
@@ -163,7 +166,7 @@ export default function Header() {
                 className="block text-lg text-white hover:underline"
                 onClick={() => setOpen(false)}
               >
-                {item.name}
+                {t(item.name)}
               </Link>
             </li>
           ))}

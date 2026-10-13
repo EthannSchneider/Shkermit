@@ -4,6 +4,7 @@ import test from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ts from 'typescript';
+import './helpers/i18n.mjs';
 import { BOARD_WALLPAPERS as allowedWallpapers, wallpaperStorageKey } from '../../backend/src/utils/board-wallpaper.js';
 
 async function moduleUrl(file, dependencies = {}) {
@@ -17,6 +18,7 @@ async function moduleUrl(file, dependencies = {}) {
   for (const [name, url] of Object.entries({
     react: import.meta.resolve('react'),
     'react/jsx-runtime': import.meta.resolve('react/jsx-runtime'),
+    'react-i18next': import.meta.resolve('react-i18next'),
     ...dependencies,
   })) {
     linked = linked.replaceAll(`'${name}'`, JSON.stringify(url)).replaceAll(`"${name}"`, JSON.stringify(url));

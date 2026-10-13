@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-context";
@@ -11,6 +12,7 @@ function messageFrom(error: unknown) {
 }
 
 export default function Account() {
+  const { t, i18n } = useTranslation();
   const { user, loading, setUser } = useAuth();
   const navigate = useNavigate();
   const [profileNotice, setProfileNotice] = useState<Notice>(null);
@@ -18,7 +20,7 @@ export default function Account() {
   const [deleteError, setDeleteError] = useState("");
   const [busy, setBusy] = useState("");
 
-  if (loading) return <main className="auth-page"><p>Loading account…</p></main>;
+  if (loading) return <main className="auth-page"><p>{t("Loading account…")}</p></main>;
   if (!user) return <Navigate to="/login" state={{ from: "/account" }} replace />;
 
   async function updateProfile(event: FormEvent<HTMLFormElement>) {
@@ -62,7 +64,7 @@ export default function Account() {
 
   async function deleteAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!window.confirm("Permanently delete your Shkermit account? This cannot be undone.")) return;
+    if (!window.confirm(t("Permanently delete your Shkermit account? This cannot be undone."))) return;
     setBusy("delete");
     setDeleteError("");
     const data = new FormData(event.currentTarget);
@@ -79,29 +81,28 @@ export default function Account() {
   return (
     <main className="account-page">
       <div className="account-heading">
-        <p className="auth-eyebrow">Signed in as {user.username}</p>
-        <h1>Account settings</h1>
-        <p>Member since {new Date(user.createdAt).toLocaleDateString()}.</p>
+        <p className="auth-eyebrow">{t("Signed in as {{username}}", { username: user.username })}</p>
+        <h1>{t("Account settings")}</h1>
+        <p>{t("Member since {{date}}.", { date: new Date(user.createdAt).toLocaleDateString(i18n.resolvedLanguage) })}</p>
         {!user.emailVerified && (
-          <div className="form-message form-error">
-            Your new email address is not confirmed. {" "}
-            <Link to={`/verify-email?email=${encodeURIComponent(user.email)}`}>Resend confirmation</Link>
+          <div className="form-message form-error"> {t("Your new email address is not confirmed.")} {" "}
+            <Link to={`/verify-email?email=${encodeURIComponent(user.email)}`}>{t("Resend confirmation")}</Link>
           </div>
         )}
       </div>
 
       <section className="settings-card">
-        <h2>Profile</h2>
+        <h2>{t("Profile")}</h2>
         <form onSubmit={updateProfile}>
-          {profileNotice && <div className={`form-message form-${profileNotice.kind}`}>{profileNotice.text}</div>}
-          <label>Username<input name="username" defaultValue={user.username} minLength={3} maxLength={24} required /></label>
-          <label>Email<input name="email" type="email" defaultValue={user.email} required /></label>
-          <button className="primary-button" disabled={busy === "profile"}>Save profile</button>
+          {profileNotice && <div className={`form-message form-${profileNotice.kind}`}>{t(profileNotice.text)}</div>}
+          <label>{t("Username")}<input name="username" defaultValue={user.username} minLength={3} maxLength={24} required /></label>
+          <label>{t("Email")}<input name="email" type="email" defaultValue={user.email} required /></label>
+          <button className="primary-button" disabled={busy === "profile"}>{t("Save profile")}</button>
         </form>
       </section>
 
       <section className="settings-card">
-        <h2>Board wallpaper</h2>
+        <h2>{t("Board wallpaper")}</h2>
         <BoardWallpaperSettings key={user.id} wallpaper={user.boardWallpaper} allowCustomUpload={user.isAdmin} onSave={async (wallpaper, image) => {
           const result = await api.updateBoardWallpaper(wallpaper, image);
           setUser((current) => current?.id === result.user.id ? { ...current, boardWallpaper: result.user.boardWallpaper } : current);
@@ -110,23 +111,23 @@ export default function Account() {
       </section>
 
       <section className="settings-card">
-        <h2>Change password</h2>
+        <h2>{t("Change password")}</h2>
         <form onSubmit={updatePassword}>
-          {passwordNotice && <div className={`form-message form-${passwordNotice.kind}`}>{passwordNotice.text}</div>}
-          <label>Current password<input name="currentPassword" type="password" autoComplete="current-password" required /></label>
-          <label>New password<input name="newPassword" type="password" autoComplete="new-password" minLength={10} required /></label>
-          <label>Confirm new password<input name="confirmPassword" type="password" autoComplete="new-password" minLength={10} required /></label>
-          <button className="primary-button" disabled={busy === "password"}>Change password</button>
+          {passwordNotice && <div className={`form-message form-${passwordNotice.kind}`}>{t(passwordNotice.text)}</div>}
+          <label>{t("Current password")}<input name="currentPassword" type="password" autoComplete="current-password" required /></label>
+          <label>{t("New password")}<input name="newPassword" type="password" autoComplete="new-password" minLength={10} required /></label>
+          <label>{t("Confirm new password")}<input name="confirmPassword" type="password" autoComplete="new-password" minLength={10} required /></label>
+          <button className="primary-button" disabled={busy === "password"}>{t("Change password")}</button>
         </form>
       </section>
 
       <section className="settings-card danger-zone">
-        <h2>Delete account</h2>
-        <p>This permanently removes your profile and all active sessions.</p>
+        <h2>{t("Delete account")}</h2>
+        <p>{t("This permanently removes your profile and all active sessions.")}</p>
         <form onSubmit={deleteAccount}>
-          {deleteError && <div className="form-message form-error">{deleteError}</div>}
-          <label>Confirm your password<input name="password" type="password" autoComplete="current-password" required /></label>
-          <button className="danger-button" disabled={busy === "delete"}>Delete my account</button>
+          {deleteError && <div className="form-message form-error">{t(deleteError)}</div>}
+          <label>{t("Confirm your password")}<input name="password" type="password" autoComplete="current-password" required /></label>
+          <button className="danger-button" disabled={busy === "delete"}>{t("Delete my account")}</button>
         </form>
       </section>
     </main>

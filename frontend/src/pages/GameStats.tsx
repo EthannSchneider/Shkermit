@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/auth-context';
@@ -14,6 +15,7 @@ const BOARD_DETAILS: Record<string, { title: string; icon: string; accent: strin
 const medal = (rank: number) => ({ 1: '🥇', 2: '🥈', 3: '🥉' }[rank] ?? `#${rank}`);
 
 export default function GameStats() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [leaderboards, setLeaderboards] = useState<GameLeaderboard[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,10 +52,10 @@ export default function GameStats() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-5">
           <div>
-            <Link to="/games" className="text-xs text-purple-200/60 transition hover:text-purple-200">← GAME HAVEN</Link>
-            <p className="mt-7 text-xs tracking-[0.3em] text-pink-300">HALL OF FROGS</p>
-            <h1 className="mt-2 text-4xl font-bold sm:text-6xl">Best score boards</h1>
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-white/50">The ten highest account records for every available game and gameplay mode.</p>
+            <Link to="/games" className="text-xs text-purple-200/60 transition hover:text-purple-200">{t("← GAME HAVEN")}</Link>
+            <p className="mt-7 text-xs tracking-[0.3em] text-pink-300">{t("HALL OF FROGS")}</p>
+            <h1 className="mt-2 text-4xl font-bold sm:text-6xl">{t("Best score boards")}</h1>
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-white/50">{t("The ten highest account records for every available game and gameplay mode.")}</p>
           </div>
           <button
             type="button"
@@ -61,13 +63,13 @@ export default function GameStats() {
             disabled={loading}
             className="rounded-xl border border-purple-300/20 bg-purple-300/10 px-5 py-3 text-xs text-purple-100 transition hover:bg-purple-300/20 disabled:opacity-50"
           >
-            {loading ? 'LOADING…' : 'REFRESH SCORES'}
+            {loading ? t("LOADING…") : t("REFRESH SCORES")}
           </button>
         </div>
 
         {error && (
           <div role="alert" className="mb-6 rounded-xl border border-red-300/20 bg-red-400/10 p-4 text-sm text-red-100">
-            {error} <button type="button" onClick={loadLeaderboards} className="ml-2 underline">Try again</button>
+            {t(error)} <button type="button" onClick={loadLeaderboards} className="ml-2 underline">{t("Try again")}</button>
           </div>
         )}
 
@@ -85,22 +87,22 @@ export default function GameStats() {
               <section key={`${board.game}:${board.mode}`} className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-xl backdrop-blur-sm">
                 <header className="flex items-center gap-3 border-b border-white/8 px-5 py-4">
                   <span className="text-2xl" aria-hidden="true">{details.icon}</span>
-                  <h2 className={`text-sm font-bold ${details.accent}`}>{details.title}</h2>
+                  <h2 className={`text-sm font-bold ${details.accent}`}>{t(details.title)}</h2>
                 </header>
                 <ol className="divide-y divide-white/6">
                   {loading && board.entries.length === 0 ? (
                     [...Array(5)].map((_, index) => <li key={index} className="mx-5 my-3 h-7 animate-pulse rounded bg-white/5" />)
                   ) : board.entries.length === 0 ? (
-                    <li className="px-5 py-10 text-center text-xs text-white/35">No score yet. Be the first frog!</li>
+                    <li className="px-5 py-10 text-center text-xs text-white/35">{t("No score yet. Be the first frog!")}</li>
                   ) : board.entries.map((entry) => {
                     const isCurrentUser = user?.username === entry.username;
                     return (
                       <li key={`${entry.rank}:${entry.username}`} className={`flex items-center gap-3 px-5 py-3 text-sm ${isCurrentUser ? 'bg-purple-300/10' : ''}`}>
                         <span className="w-9 shrink-0 text-center text-xs text-white/55">{medal(entry.rank)}</span>
                         <span className={`min-w-0 flex-1 truncate ${isCurrentUser ? 'font-bold text-purple-200' : 'text-white/75'}`}>
-                          {entry.username}{isCurrentUser ? ' · YOU' : ''}
+                          {entry.username}{isCurrentUser ? t(" · YOU") : ''}
                         </span>
-                        <span className="font-mono text-xs text-white">{entry.score.toLocaleString()}</span>
+                        <span className="font-mono text-xs text-white">{entry.score.toLocaleString(i18n.resolvedLanguage)}</span>
                       </li>
                     );
                   })}

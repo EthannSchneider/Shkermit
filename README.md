@@ -30,6 +30,10 @@ npm run dev
 
 Vite proxies `/api` requests to `http://localhost:3001`. Prisma creates the SQLite database at `backend/data/shkermit.db` when the migrations are applied. The database file is ignored by Git.
 
+The interface supports English and French through `i18next` and `react-i18next`. Choose **EN / FR** in the footer to change language immediately. The choice saves on this device under `shkermitLanguage`; first visits use the browser language, with English as the fallback. Regional variants such as `fr-CH` use the French catalog. Numbers, dates, and the document language follow the selected language.
+
+Translation catalogs are in `frontend/src/i18n/locales/en.json` and `fr.json`, initialized by `frontend/src/i18n/index.ts`. Use `useTranslation()` and `t()` for interface text. English phrases serve as translation keys; add matching entries in both catalogs. Use interpolation for variable text and `_one` / `_other` keys with a `count` option for plurals. Keep user content, account names, route paths, stored game identifiers, and protocol messages unchanged. Game messages are localized at render time by `localize-message.ts`.
+
 Shkermit Stacks includes online two-player co-op and duel modes. The first player creates a five-character room code and the second joins it from another browser. Co-op uses one shared board, while duel gives each player a separate board and turns multi-line clears into garbage attacks. Refreshing automatically reclaims the same player seat and board; the server reserves disconnected seats for 30 seconds before expiring them. Vite proxies `/ws/tetris` to the backend during development; in production the Express server handles the WebSocket upgrade on the same origin as the site.
 
 Starting at level 32, the Tetris board adds playable rows to give players more stacking space. Its width stays fixed, and growth accumulates at 3% of the original 20-row height per level, rounded up to whole rows: 21 rows at level 32, 22 at level 33, and 23 at level 36. Existing stacks stay against the floor, and restarting restores the original board size. This applies to solo, co-op, and both duel boards.

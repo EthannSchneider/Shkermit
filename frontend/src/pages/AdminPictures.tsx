@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../context/auth-context";
@@ -30,6 +31,7 @@ function PictureEditor({
   onDeleted: (id: number) => void;
   onMove: (id: number, direction: "up" | "down") => void;
 }) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState(picture.title);
   const [altText, setAltText] = useState(picture.altText);
   const [file, setFile] = useState<File | null>(null);
@@ -56,7 +58,7 @@ function PictureEditor({
   }
 
   async function remove() {
-    if (!window.confirm(`Delete “${picture.title}”? This cannot be undone.`)) return;
+    if (!window.confirm(t("Delete “{{value1}}”? This cannot be undone.", { value1: picture.title }))) return;
     setBusy(true);
     setError("");
     try {
@@ -72,13 +74,13 @@ function PictureEditor({
     <article className="admin-picture-card">
       <div className="admin-picture-preview">
         <img src={pictureSource(picture)} alt={picture.altText} />
-        <div className="position-controls" aria-label={`Position controls for ${picture.title}`}>
+        <div className="position-controls" aria-label={t("Position controls for {{value1}}", { value1: picture.title })}>
           <button
             type="button"
             onClick={() => onMove(picture.id, "up")}
             disabled={index === 0 || reordering}
-            aria-label={`Move ${picture.title} up`}
-            title="Move up"
+            aria-label={t("Move {{value1}} up", { value1: picture.title })}
+            title={t("Move up")}
           >
             ⬆️
           </button>
@@ -87,21 +89,21 @@ function PictureEditor({
             type="button"
             onClick={() => onMove(picture.id, "down")}
             disabled={index === total - 1 || reordering}
-            aria-label={`Move ${picture.title} down`}
-            title="Move down"
+            aria-label={t("Move {{value1}} down", { value1: picture.title })}
+            title={t("Move down")}
           >
             ⬇️
           </button>
         </div>
       </div>
       <form onSubmit={save}>
-        <label>Title<input value={title} maxLength={100} onChange={(event) => setTitle(event.target.value)} required /></label>
-        <label>Alternative text<input value={altText} maxLength={240} onChange={(event) => setAltText(event.target.value)} required /></label>
-        <label>Replace image<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label>
-        {error && <div className="form-message form-error" role="alert">{error}</div>}
+        <label>{t("Title")}<input value={title} maxLength={100} onChange={(event) => setTitle(event.target.value)} required /></label>
+        <label>{t("Alternative text")}<input value={altText} maxLength={240} onChange={(event) => setAltText(event.target.value)} required /></label>
+        <label>{t("Replace image")}<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label>
+        {error && <div className="form-message form-error" role="alert">{t(error)}</div>}
         <div className="admin-actions">
-          <button className="primary-button" type="submit" disabled={busy}>{busy ? "Saving…" : "Save"}</button>
-          <button className="danger-button" type="button" onClick={remove} disabled={busy}>Delete</button>
+          <button className="primary-button" type="submit" disabled={busy}>{busy ? t("Saving…") : t("Save")}</button>
+          <button className="danger-button" type="button" onClick={remove} disabled={busy}>{t("Delete")}</button>
         </div>
       </form>
     </article>
@@ -109,6 +111,7 @@ function PictureEditor({
 }
 
 export default function AdminPictures() {
+  const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
   const [pictures, setPictures] = useState<Picture[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,7 +145,7 @@ export default function AdminPictures() {
     };
   }, [createOpen, creating]);
 
-  if (authLoading) return <main className="gallery-page"><p className="gallery-status">Checking access…</p></main>;
+  if (authLoading) return <main className="gallery-page"><p className="gallery-status">{t("Checking access…")}</p></main>;
   if (!user) return <Navigate to="/login" replace />;
   if (!user.isAdmin) return <Navigate to="/pictures" replace />;
 
@@ -184,9 +187,9 @@ export default function AdminPictures() {
     <main className="gallery-page admin-gallery-page">
       <div className="gallery-heading">
         <div>
-          <p className="auth-eyebrow">Administration</p>
-          <h1>Manage pictures</h1>
-          <p className="gallery-status">Add, edit, order, replace, or remove gallery pictures.</p>
+          <p className="auth-eyebrow">{t("Administration")}</p>
+          <h1>{t("Manage pictures")}</h1>
+          <p className="gallery-status">{t("Add, edit, order, replace, or remove gallery pictures.")}</p>
         </div>
         <div className="gallery-heading-actions">
           <button
@@ -196,10 +199,8 @@ export default function AdminPictures() {
               setCreateError("");
               setCreateOpen(true);
             }}
-          >
-            Add a picture
-          </button>
-          <Link className="account-cta" to="/pictures">View gallery</Link>
+          > {t("Add a picture")} </button>
+          <Link className="account-cta" to="/pictures">{t("View gallery")}</Link>
         </div>
       </div>
 
@@ -219,37 +220,35 @@ export default function AdminPictures() {
           >
             <div className="admin-modal-heading">
               <div>
-                <p className="auth-eyebrow">New gallery item</p>
-                <h2 id="add-picture-title">Add a picture</h2>
+                <p className="auth-eyebrow">{t("New gallery item")}</p>
+                <h2 id="add-picture-title">{t("Add a picture")}</h2>
               </div>
               <button
                 className="admin-modal-close"
                 type="button"
-                aria-label="Close add picture dialog"
+                aria-label={t("Close add picture dialog")}
                 onClick={() => setCreateOpen(false)}
                 disabled={creating}
-              >
-                ×
-              </button>
+              > {t("×")} </button>
             </div>
             <form onSubmit={create}>
-              <label>Title<input name="title" maxLength={100} autoFocus required /></label>
-              <label>Alternative text<input name="altText" maxLength={240} required /></label>
-              <label>Image<input name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif" required /></label>
-              <p className="field-hint">JPEG, PNG, WebP, or GIF. Maximum 5 MB. New pictures are added last.</p>
+              <label>{t("Title")}<input name="title" maxLength={100} autoFocus required /></label>
+              <label>{t("Alternative text")}<input name="altText" maxLength={240} required /></label>
+              <label>{t("Image")}<input name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif" required /></label>
+              <p className="field-hint">{t("JPEG, PNG, WebP, or GIF. Maximum 5 MB. New pictures are added last.")}</p>
               {createError && <div className="form-message form-error" role="alert">{createError}</div>}
               <div className="admin-modal-actions">
-                <button type="button" className="secondary-button" onClick={() => setCreateOpen(false)} disabled={creating}>Cancel</button>
-                <button className="primary-button" type="submit" disabled={creating}>{creating ? "Uploading…" : "Add picture"}</button>
+                <button type="button" className="secondary-button" onClick={() => setCreateOpen(false)} disabled={creating}>{t("Cancel")}</button>
+                <button className="primary-button" type="submit" disabled={creating}>{creating ? t("Uploading…") : t("Add picture")}</button>
               </div>
             </form>
           </section>
         </div>
       )}
 
-      {error && <div className="form-message form-error" role="alert">{error}</div>}
-      {loading ? <p className="gallery-status">Loading pictures…</p> : (
-        <section className="admin-picture-list" aria-label="Existing pictures">
+      {error && <div className="form-message form-error" role="alert">{t(error)}</div>}
+      {loading ? <p className="gallery-status">{t("Loading pictures…")}</p> : (
+        <section className="admin-picture-list" aria-label={t("Existing pictures")}>
           {pictures.map((picture, index) => (
             <PictureEditor
               key={picture.id}

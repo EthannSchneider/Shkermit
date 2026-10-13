@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import img1 from "../../../assets/img/1 ShkermitRTX.png";
 import img6 from "../../../assets/img/6 ShkermitTHUG.png";
 import img7 from "../../../assets/img/7 ShkermitTHUG RTX.png";
@@ -68,9 +69,10 @@ const weapons: Weapon[] = [
 ];
 
 export default function WeaponsShop({ score, weaponCounts, onPurchase }: WeaponsShopProps) {
+  const { t, i18n } = useTranslation();
   return (
     <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 shadow-xl h-[500px] overflow-y-auto">
-      <h3 className="text-2xl font-bold mb-6 text-red-300">Weapons Shop 🔫</h3>
+      <h3 className="text-2xl font-bold mb-6 text-red-300">{t("Weapons Shop 🔫")}</h3>
 
       <div className="space-y-3">
         {weapons.map((weapon) => {
@@ -83,7 +85,7 @@ export default function WeaponsShop({ score, weaponCounts, onPurchase }: Weapons
               key={weapon.id}
               disabled={!canAfford}
               onClick={() => onPurchase(weapon)}
-              aria-label={`Buy ${weapon.name} for ${weapon.cost.toLocaleString()} shkermites`}
+              aria-label={t("Buy {{value1}} for {{value2}} shkermites", { value1: t(weapon.name), value2: weapon.cost.toLocaleString(i18n.resolvedLanguage) })}
               className={`w-full p-4 rounded-xl cursor-pointer transition-all duration-200 flex flex-col items-center gap-3 ${
                 canAfford
                   ? 'bg-linear-to-b from-red-500/50 to-orange-500/50 border border-red-400 hover:scale-105 hover:from-red-500/60 hover:to-orange-500/60'
@@ -93,26 +95,26 @@ export default function WeaponsShop({ score, weaponCounts, onPurchase }: Weapons
               <div className="flex items-center gap-3">
                 <img
                   src={weapon.image}
-                  alt={weapon.name}
+                  alt={t(weapon.name)}
                   className="h-16 w-16 object-contain"
                 />
                 <div className="text-left">
                   <h4 className="font-bold text-lg">
-                    {count > 0 ? weapon.namePlural || weapon.name : weapon.name}
+                    {t(count > 0 ? weapon.namePlural || weapon.name : weapon.name)}
                   </h4>
-                  <p className="text-sm opacity-80">{weapon.description}</p>
+                  <p className="text-sm opacity-80">{t(weapon.description)}</p>
                 </div>
               </div>
               <div className="w-full flex justify-between items-center pt-2 border-t border-white/10">
                 <div className="bg-black/30 rounded-lg px-3 py-2 flex-1 text-center">
                   <div className="text-lg font-bold text-yellow-400">
-                    {weapon.cost.toLocaleString()}
+                    {weapon.cost.toLocaleString(i18n.resolvedLanguage)}
                   </div>
                 </div>
                 {count > 0 ? (
-                  <div className="text-green-400 text-sm font-bold px-3">{count} Owned</div>
+                  <div className="text-green-400 text-sm font-bold px-3">{t("ownedCount", { count, formattedCount: count.toLocaleString(i18n.resolvedLanguage) })}</div>
                 ) : (
-                  <div className="text-red-400 text-sm font-bold px-3">Buy</div>
+                  <div className="text-red-400 text-sm font-bold px-3">{t("Buy")}</div>
                 )}
               </div>
             </button>

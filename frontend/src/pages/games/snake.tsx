@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import shkermitImage from '../../assets/img/1 ShkermitRTX.png';
 import { useAuth } from '../../context/auth-context';
@@ -14,9 +15,10 @@ const getSavedHighScore = () => {
 };
 
 export default function SnakeGame() {
+  const { t } = useTranslation();
   const controllerSettings = useControllerBindings('snake');
-  const startControlLabel = controllerBindingLabel(controllerSettings.bindings, 'south');
-  const pauseControlLabel = controllerBindingLabel(controllerSettings.bindings, 'start');
+  const startControlLabel = controllerBindingLabel(controllerSettings.bindings, 'south', t);
+  const pauseControlLabel = controllerBindingLabel(controllerSettings.bindings, 'start', t);
   const { user } = useAuth();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameStarted, setGameStarted] = useState(false);
@@ -76,7 +78,7 @@ export default function SnakeGame() {
     setIsPaused(false);
     setGameStatus('playing');
     setGameStarted(true);
-  }, [generateFood]);
+  }, [generateFood, setIsPaused]);
 
   const handleControl = useCallback((control: GamepadControl) => {
     if (!gameStarted || gameStatus === 'gameover') {
@@ -99,7 +101,7 @@ export default function SnakeGame() {
       || (next.x === -current.x && next.y === -current.y)) return;
     turnPendingRef.current = true;
     setDirection(next);
-  }, [gameStarted, gameStatus, isPaused, resetGame]);
+  }, [gameStarted, gameStatus, isPaused, resetGame, setIsPaused]);
 
   const controllerStatus = useGamepad({
     onControl: handleControl, repeat: ['up', 'down', 'left', 'right'],
@@ -255,9 +257,7 @@ export default function SnakeGame() {
   return (
     <div className="min-h-screen bg-linear-to-b from-green-900 via-emerald-900 to-black text-white p-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-8 text-transparent bg-clip-text bg-linear-to-b from-green-400 to-emerald-500">
-          🐍 Snake Game
-        </h1>
+        <h1 className="text-4xl font-bold text-center mb-8 text-transparent bg-clip-text bg-linear-to-b from-green-400 to-emerald-500"> {t("🐍 Snake Game")} </h1>
 
         <div className="flex flex-col lg:flex-row gap-8 justify-center items-start">
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-green-400/50">
@@ -269,25 +269,22 @@ export default function SnakeGame() {
             />
             {!gameStarted && (
               <div className="text-center mt-4">
-                <p className="text-2xl font-bold text-green-400 mb-2">Press Enter, Space, or {startControlLabel} to start!</p>
-                <p className="text-gray-300">Use arrow keys or your controller controls to move</p>
+                <p className="text-2xl font-bold text-green-400 mb-2">{t("Press Enter, Space, or {{control}} to start!", { control: startControlLabel })}</p>
+                <p className="text-gray-300">{t("Use arrow keys or your controller controls to move")}</p>
               </div>
             )}
-            {isPaused && !gameOver && <p className="mt-4 text-center text-yellow-400">Paused · P or {pauseControlLabel} to resume</p>}
+            {isPaused && !gameOver && <p className="mt-4 text-center text-yellow-400">{t("Paused · P or {{control}} to resume", { control: pauseControlLabel })}</p>}
             {gameOver && (
               <div className="text-center mt-4">
-                <p className="text-2xl font-bold text-yellow-400 mb-2">Game Over!</p>
+                <p className="text-2xl font-bold text-yellow-400 mb-2">{t("Game Over!")}</p>
                 {gameOver && (
-                  <p className="text-xl text-white">
-                    Score: {score} | High Score: {Math.max(highScore, bestScore)}
+                  <p className="text-xl text-white"> {t("Score:")} {score} {t("| High Score:")} {Math.max(highScore, bestScore)}
                   </p>
                 )}
                 <button
                   onClick={resetGame}
                   className="mt-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold transition-colors"
-                >
-                  Play Again
-                </button>
+                > {t("Play Again")} </button>
               </div>
             )}
           </div>
@@ -295,15 +292,15 @@ export default function SnakeGame() {
           <div className="flex-1 max-w-md">
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-6 border border-green-400/50">
               <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold text-green-300 mb-4">📊 Score</h2>
+                <h2 className="text-2xl font-bold text-green-300 mb-4">{t("📊 Score")}</h2>
                 <div className="text-5xl font-bold text-white mb-2">{score}</div>
-                <div className="text-xl text-yellow-400">🏆 High Score: {Math.max(highScore, bestScore)}</div>
-                {user && <div className="mt-1 text-xs text-green-200">Saved for {user.username}</div>}
+                <div className="text-xl text-yellow-400">{t("🏆 High Score:")} {Math.max(highScore, bestScore)}</div>
+                {user && <div className="mt-1 text-xs text-green-200">{t("Saved for")} {user.username}</div>}
               </div>
 
               <div className="space-y-4 text-gray-300">
                 <div>
-                  <h3 className="font-bold text-green-300 mb-2">Keyboard Controls:</h3>
+                  <h3 className="font-bold text-green-300 mb-2">{t("Keyboard Controls:")}</h3>
                   <div className="grid grid-cols-3 gap-2 text-sm">
                     <div></div>
                     <div className="bg-green-600/20 rounded-lg p-2 text-center">↑</div>
@@ -315,11 +312,11 @@ export default function SnakeGame() {
                 </div>
                 <div className="flex items-center gap-2 mt-6">
                   <span className="text-2xl">⏸️</span>
-                  <span className="text-sm">Press P to pause/resume</span>
+                  <span className="text-sm">{t("Press P to pause/resume")}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span>🔄</span>
-                  <span className="text-sm">Press Enter, Space, or {startControlLabel} to play again</span>
+                  <span className="text-sm">{t("Press Enter, Space, or {{control}} to play again", { control: startControlLabel })}</span>
                 </div>
               </div>
             </div>
@@ -334,15 +331,13 @@ export default function SnakeGame() {
               onClick={resetGame}
               className="w-full bg-linear-to-b from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 py-4 rounded-2xl font-bold text-xl transition-all duration-200 shadow-lg hover:shadow-green-500/30 hover:scale-105"
             >
-              {gameOver ? 'Play Again' : 'Start New Game'}
+              {gameOver ? t("Play Again") : t("Start New Game")}
             </button>
           </div>
         </div>
 
         <div className="mt-8 text-center">
-          <p className="text-gray-400">
-            Eat the red food to grow! Avoid hitting the walls or your own tail! 🎯
-          </p>
+          <p className="text-gray-400"> {t("Eat the red food to grow! Avoid hitting the walls or your own tail! 🎯")} </p>
         </div>
       </div>
     </div>

@@ -1,9 +1,11 @@
+import { useTranslation } from 'react-i18next';
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-context";
 import { ApiError } from "../lib/api";
 
 export default function AuthForm({ mode }: { mode: "login" | "register" }) {
+  const { t } = useTranslation();
   const { user, loading, login, register } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,23 +49,21 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
   return (
     <main className="auth-page">
       <form className="auth-card" onSubmit={handleSubmit}>
-        <p className="auth-eyebrow">Shkermit account</p>
-        <h1>{isRegister ? "Join the swamp" : "Welcome back"}</h1>
+        <p className="auth-eyebrow">{t("Shkermit account")}</p>
+        <h1>{isRegister ? t("Join the swamp") : t("Welcome back")}</h1>
         <p className="auth-intro">
-          {isRegister ? "Create an account to make Shkermit yours." : "Log in with your username or email."}
+          {isRegister ? t("Create an account to make Shkermit yours.") : t("Log in with your username or email.")}
         </p>
 
-        {error && <div className="form-message form-error" role="alert">{error}</div>}
+        {error && <div className="form-message form-error" role="alert">{t(error)}</div>}
 
         {isRegister && (
-          <label>
-            Username
-            <input name="username" autoComplete="username" minLength={3} maxLength={24} required />
+          <label> {t("Username")} <input name="username" autoComplete="username" minLength={3} maxLength={24} required />
           </label>
         )}
 
         <label>
-          {isRegister ? "Email" : "Username or email"}
+          {isRegister ? t("Email") : t("Username or email")}
           <input
             name={isRegister ? "email" : "identifier"}
             type={isRegister ? "email" : "text"}
@@ -72,9 +72,7 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
           />
         </label>
 
-        <label>
-          Password
-          <input
+        <label> {t("Password")} <input
             name="password"
             type="password"
             autoComplete={isRegister ? "new-password" : "current-password"}
@@ -85,21 +83,19 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
 
         {isRegister && (
           <>
-            <p className="field-hint">10+ characters with uppercase, lowercase, and a number.</p>
-            <label>
-              Confirm password
-              <input name="confirmPassword" type="password" autoComplete="new-password" minLength={10} required />
+            <p className="field-hint">{t("10+ characters with uppercase, lowercase, and a number.")}</p>
+            <label> {t("Confirm password")} <input name="confirmPassword" type="password" autoComplete="new-password" minLength={10} required />
             </label>
           </>
         )}
 
         <button className="primary-button" disabled={submitting}>
-          {submitting ? "Please wait…" : isRegister ? "Create account" : "Log in"}
+          {submitting ? t("Please wait…") : isRegister ? t("Create account") : t("Log in")}
         </button>
         <p className="auth-switch">
-          {isRegister ? "Already registered?" : "New to Shkermit?"}{" "}
+          {isRegister ? t("Already registered?") : t("New to Shkermit?")}{" "}
           <Link to={isRegister ? "/login" : "/register"}>
-            {isRegister ? "Log in" : "Create an account"}
+            {isRegister ? t("Log in") : t("Create an account")}
           </Link>
         </p>
       </form>

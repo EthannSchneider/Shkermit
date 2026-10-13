@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import img2 from "../../../assets/img/2 Shkermit RTX PDP.png";
 import img3 from "../../../assets/img/3 TeteShkermit RTX.png";
 import img4 from "../../../assets/img/4 ShkermitMLG.png";
@@ -68,9 +69,10 @@ const upgrades: Upgrade[] = [
 ];
 
 export default function Shop({ score, upgradeCounts, onPurchase }: ShopProps) {
+  const { t, i18n } = useTranslation();
   return (
     <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 shadow-xl h-[500px] overflow-y-auto">
-      <h3 className="text-2xl font-bold mb-6 text-purple-300">Shkermit Shop 🛒</h3>
+      <h3 className="text-2xl font-bold mb-6 text-purple-300">{t("Shkermit Shop 🛒")}</h3>
 
       <div className="space-y-3">
         {upgrades.map((upgrade) => {
@@ -83,7 +85,7 @@ export default function Shop({ score, upgradeCounts, onPurchase }: ShopProps) {
               key={upgrade.id}
               disabled={!canAfford}
               onClick={() => onPurchase(upgrade)}
-              aria-label={`Buy ${upgrade.name} for ${upgrade.cost.toLocaleString()} shkermites`}
+              aria-label={t("Buy {{value1}} for {{value2}} shkermites", { value1: t(upgrade.name), value2: upgrade.cost.toLocaleString(i18n.resolvedLanguage) })}
               className={`w-full p-4 rounded-xl cursor-pointer transition-all duration-200 flex flex-col items-center gap-3 ${
                 canAfford
                   ? 'bg-linear-to-b from-purple-500/50 to-pink-500/50 border border-purple-400 hover:scale-105 hover:from-purple-500/60 hover:to-pink-500/60'
@@ -93,26 +95,26 @@ export default function Shop({ score, upgradeCounts, onPurchase }: ShopProps) {
               <div className="flex items-center gap-3">
                 <img
                   src={upgrade.image}
-                  alt={upgrade.name}
+                  alt={t(upgrade.name)}
                   className="h-16 w-16 object-contain"
                 />
                 <div className="text-left">
                   <h4 className="font-bold text-lg">
-                    {count > 0 ? upgrade.namePlural || upgrade.name : upgrade.name}
+                    {t(count > 0 ? upgrade.namePlural || upgrade.name : upgrade.name)}
                   </h4>
-                  <p className="text-sm opacity-80">{upgrade.description}</p>
+                  <p className="text-sm opacity-80">{t(upgrade.description)}</p>
                 </div>
               </div>
               <div className="w-full flex justify-between items-center pt-2 border-t border-white/10">
                 <div className="bg-black/30 rounded-lg px-3 py-2 flex-1 text-center">
                   <div className="text-lg font-bold text-yellow-400">
-                    {upgrade.cost.toLocaleString()}
+                    {upgrade.cost.toLocaleString(i18n.resolvedLanguage)}
                   </div>
                 </div>
                 {count > 0 ? (
-                  <div className="text-green-400 text-sm font-bold px-3">{count} Owned</div>
+                  <div className="text-green-400 text-sm font-bold px-3">{t("ownedCount", { count, formattedCount: count.toLocaleString(i18n.resolvedLanguage) })}</div>
                 ) : (
-                  <div className="text-purple-400 text-sm font-bold px-3">Buy</div>
+                  <div className="text-purple-400 text-sm font-bold px-3">{t("Buy")}</div>
                 )}
               </div>
             </button>

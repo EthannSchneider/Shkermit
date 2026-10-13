@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useRef } from 'react';
 import Shkermit from '../../components/games/clicker/shkermit';
 import Stats from '../../components/games/clicker/stats';
@@ -13,6 +14,7 @@ import { activateControllerFocus, moveControllerFocus } from '../../lib/controll
 import { useControllerBindings } from '../../hooks/use-controller-bindings';
 
 export default function ShkermitClicker() {
+  const { t, i18n } = useTranslation();
   const controllerSettings = useControllerBindings('clicker');
   const { user } = useAuth();
   const { bestScore, recordScore } = useBestScore('clicker', 'classic');
@@ -165,12 +167,10 @@ export default function ShkermitClicker() {
   return (
     <div ref={gameRootRef} className="min-h-screen bg-linear-to-b from-purple-900 via-indigo-900 to-black text-white p-8 [&_button:focus]:outline-2 [&_button:focus]:outline-offset-4 [&_button:focus]:outline-yellow-300">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-8 text-transparent bg-clip-text bg-linear-to-b from-purple-400 to-pink-500">
-          ⭐ Shkermit Clicker ⭐
-        </h1>
+        <h1 className="text-4xl font-bold text-center mb-8 text-transparent bg-clip-text bg-linear-to-b from-purple-400 to-pink-500"> {t("⭐ Shkermit Clicker ⭐")} </h1>
         {user && (
           <p className="mb-6 text-center text-sm text-yellow-300">
-            🏆 {user.username}'s best: {bestScore.toLocaleString()}
+            🏆 {t("{{username}}'s best: {{score}}", { username: user.username, score: bestScore.toLocaleString(i18n.resolvedLanguage) })}
           </p>
         )}
 
@@ -201,9 +201,7 @@ export default function ShkermitClicker() {
         </div>
 
         <div className="mt-8 text-center">
-          <p className="text-gray-400">
-            Click the Shkermit to earn shkermites! 💫
-          </p>
+          <p className="text-gray-400"> {t("Click the Shkermit to earn shkermites! 💫")} </p>
         </div>
       </div>
     </div>
