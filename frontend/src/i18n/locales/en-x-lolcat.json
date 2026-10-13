@@ -661,5 +661,15 @@
   "🏆 High Score:": "🏆 HI SKOR:",
   "🏆 VIEW BEST SCORE BOARDS": "🏆 LOOK AT BESTEST SKOR BOARDS",
   "🐍 Snake Game": "🐍 SNEK GAEM",
-  "📊 Score": "📊 SKOR"
+  "📊 Score": "📊 SKOR",
+  "Profile picture": "PROFILE PICSHUR",
+  "Account menu for {{username}}": "ACCOUNT MENU FOR {{username}}",
+  "Admin settings": "ADMIN SETTINGZ",
+  "JPEG, PNG, WebP, or GIF. Maximum 5 MB.": "JPEG, PNG, WebP, OR GIF. MAX 5 MB.",
+  "Save picture": "SAVE PICSHUR",
+  "Remove picture": "REMOVE PICSHUR",
+  "Profile picture updated.": "PROFILE PICSHUR UPDATED.",
+  "Profile picture removed.": "PROFILE PICSHUR REMOVED.",
+  "Choose a profile picture.": "CHOOSE A PROFILE PICSHUR.",
+  "Profile picture not found.": "PROFILE PICSHUR NOT FOUND."
 }

@@ -31,6 +31,7 @@ import { createPictureService } from "./services/picture.service.js";
 import { createGameScoreService } from "./services/game-score.service.js";
 import { createPictureStorage } from "./services/picture-storage.service.js";
 import { createBoardWallpaperService } from "./services/board-wallpaper.service.js";
+import { createProfilePictureService } from "./services/profile-picture.service.js";
 import { HttpError } from "./utils/http-error.js";
 
 export function createApp({
@@ -54,6 +55,8 @@ export function createApp({
   const pictureStorage = createPictureStorage(pictureUploadDirectory);
   const wallpaperDirectory = path.resolve(pictureUploadDirectory, "board-wallpapers");
   const wallpaperStorage = createPictureStorage(wallpaperDirectory);
+  const profilePictureDirectory = path.resolve(pictureUploadDirectory, "profile-pictures");
+  const profilePictureStorage = createPictureStorage(profilePictureDirectory);
   const sessionService = createSessionService({ sessionModel, sessionTtlMs });
   const withTransaction = (work) =>
     db.$transaction((transaction) =>
@@ -77,15 +80,17 @@ export function createApp({
     emailVerificationService,
   });
   const boardWallpaperService = createBoardWallpaperService({ storage: wallpaperStorage, withTransaction });
+  const profilePictureService = createProfilePictureService({ storage: profilePictureStorage, withTransaction });
   const accountService = createAccountService({
     userModel,
     sessionService,
     emailVerificationService,
     withTransaction,
     boardWallpaperService,
+    profilePictureService,
   });
   const pictureService = createPictureService({ pictureModel, pictureStorage });
-  const adminUserService = createAdminUserService({ userModel, emailVerificationService, withTransaction, boardWallpaperService });
+  const adminUserService = createAdminUserService({ userModel, emailVerificationService, withTransaction, boardWallpaperService, profilePictureService });
   const gameScoreService = createGameScoreService({ gameScoreModel });
   const cookieOptions = sessionCookieOptions(sessionTtlMs, isProduction);
   const authRateLimit = createAuthRateLimit(isProduction);
@@ -102,6 +107,10 @@ export function createApp({
   }));
   app.use(express.json({ limit: "20kb" }));
   app.use(cookieParser());
+  app.use("/api/profile-pictures", express.static(profilePictureDirectory, {
+    immutable: true,
+    maxAge: "1y",
+  }), (_request, _response, next) => next(new HttpError(404, "Profile picture not found.")));
   app.use("/api/board-wallpapers", express.static(wallpaperDirectory, {
     immutable: true,
     maxAge: "1y",

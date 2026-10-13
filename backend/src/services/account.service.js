@@ -16,8 +16,18 @@ export function createAccountService({
   emailVerificationService,
   withTransaction,
   boardWallpaperService,
+  profilePictureService,
 }) {
   return {
+    async updateProfilePicture(user, file) {
+      if (!file) throw new HttpError(400, "Choose a profile picture.");
+      return profilePictureService.update(user.id, file);
+    },
+
+    async removeProfilePicture(user) {
+      return profilePictureService.update(user.id, null);
+    },
+
     async updateBoardWallpaper(user, wallpaper, file) {
       return boardWallpaperService.update(user.id, wallpaper, file);
     },
@@ -68,6 +78,7 @@ export function createAccountService({
       }
       const deletedUser = await userModel.deleteById(user.id);
       await boardWallpaperService.remove(deletedUser.boardWallpaper);
+      await profilePictureService.remove(deletedUser.profilePicture);
     },
   };
 }

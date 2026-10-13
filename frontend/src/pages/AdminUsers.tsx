@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
 import AdminNavigation from "../components/admin-navigation";
+import ProfileAvatar from "../components/profile-avatar";
 import { useAuth } from "../context/auth-context";
 import { api, type AdminUser, type AdminUsersResponse } from "../lib/api";
 import { BoardWallpaperSettings } from "../components/games/tetris/board-wallpaper-settings";
@@ -236,7 +237,15 @@ export default function AdminUsers() {
                   <tbody>
                     {data.users.map((target) => (
                       <tr key={target.id}>
-                        <td><strong>{target.username}</strong><span className="admin-user-email">{target.email}</span></td>
+                        <td>
+                          <div className="flex items-center gap-3">
+                            <ProfileAvatar src={target.profilePictureUrl} />
+                            <div>
+                              <strong>{target.username}</strong>
+                              <span className="admin-user-email">{target.email}</span>
+                            </div>
+                          </div>
+                        </td>
                         <td><span className={`admin-user-badge ${target.emailVerified ? "verified" : "pending"}`}>{target.emailVerified ? t("Confirmed") : t("Pending email")}</span>{target.isSuspended && <span className="admin-user-badge suspended">{t("Suspended")}</span>}{!target.canManage && <span className="admin-user-email">{t("Protected admin")}{target.id === user.id ? t(" (you)") : ""}</span>}</td>
                         <td><time dateTime={target.createdAt}>{new Date(target.createdAt).toLocaleDateString(i18n.resolvedLanguage)}</time></td>
                         <td><button className="secondary-button" type="button" disabled={actionsDisabled} onClick={() => { setWallpaperUser(target); setError(""); setNotice(null); }}>{t("Wallpaper")}</button></td>

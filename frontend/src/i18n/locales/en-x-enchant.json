@@ -661,5 +661,15 @@
   "🏆 High Score:": "🏆  :",
   "🏆 VIEW BEST SCORE BOARDS": "🏆    ",
   "🐍 Snake Game": "🐍  ",
-  "📊 Score": "📊 "
+  "📊 Score": "📊 ",
+  "Profile picture": " ",
+  "Account menu for {{username}}": "   {{username}}",
+  "Admin settings": " ",
+  "JPEG, PNG, WebP, or GIF. Maximum 5 MB.": ", , ,  .  5 .",
+  "Save picture": " ",
+  "Remove picture": " ",
+  "Profile picture updated.": "  .",
+  "Profile picture removed.": "  .",
+  "Choose a profile picture.": "   .",
+  "Profile picture not found.": "   ."
 }

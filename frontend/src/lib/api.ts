@@ -6,6 +6,7 @@ export type User = {
   isAdmin: boolean;
   isSuspended: boolean;
   boardWallpaper: string;
+  profilePictureUrl: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -91,6 +92,13 @@ function wallpaperBody(boardWallpaper: string, image?: File) {
 }
 
 export const api = {
+  updateProfilePicture: (image: File) => {
+    const body = new FormData();
+    body.set("image", image);
+    return request<UserResponse>("/api/account/profile-picture", { method: "PATCH", body });
+  },
+  removeProfilePicture: () =>
+    request<UserResponse>("/api/account/profile-picture", { method: "DELETE" }),
   updateBoardWallpaper: (boardWallpaper: string, image?: File) =>
     request<UserResponse>("/api/account/wallpaper", {
       method: "PATCH", body: wallpaperBody(boardWallpaper, image),

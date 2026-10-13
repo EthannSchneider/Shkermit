@@ -3,6 +3,16 @@ import { SESSION_COOKIE_NAME } from "../config/security.js";
 
 export function createAccountController({ accountService, cookieOptions }) {
   return {
+    async updateProfilePicture(request, response) {
+      const user = await accountService.updateProfilePicture(request.user, request.file);
+      response.json({ user: publicUser(user) });
+    },
+
+    async removeProfilePicture(request, response) {
+      const user = await accountService.removeProfilePicture(request.user);
+      response.json({ user: publicUser(user) });
+    },
+
     async updateBoardWallpaper(request, response) {
       const user = await accountService.updateBoardWallpaper(request.user, request.body?.boardWallpaper, request.file);
       response.json({ user: publicUser(user) });

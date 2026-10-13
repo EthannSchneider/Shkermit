@@ -661,5 +661,15 @@
   "🏆 High Score:": "🏆 Record:",
   "🏆 VIEW BEST SCORE BOARDS": "🏆 VEDI LE CLASSIFICHE",
   "🐍 Snake Game": "🐍 Gioco del serpente",
-  "📊 Score": "📊 Punteggio"
+  "📊 Score": "📊 Punteggio",
+  "Profile picture": "Immagine del profilo",
+  "Account menu for {{username}}": "Menu account di {{username}}",
+  "Admin settings": "Impostazioni amministratore",
+  "JPEG, PNG, WebP, or GIF. Maximum 5 MB.": "JPEG, PNG, WebP o GIF. Massimo 5 MB.",
+  "Save picture": "Salva immagine",
+  "Remove picture": "Rimuovi immagine",
+  "Profile picture updated.": "Immagine del profilo aggiornata.",
+  "Profile picture removed.": "Immagine del profilo rimossa.",
+  "Choose a profile picture.": "Scegli un’immagine del profilo.",
+  "Profile picture not found.": "Immagine del profilo non trovata."
 }

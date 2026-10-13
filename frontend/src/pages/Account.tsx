@@ -4,6 +4,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-context";
 import { api } from "../lib/api";
 import { BoardWallpaperSettings } from "../components/games/tetris/board-wallpaper-settings";
+import ProfilePictureSettings from "../components/profile-picture-settings";
 
 type Notice = { kind: "success" | "error"; text: string } | null;
 
@@ -90,6 +91,11 @@ export default function Account() {
           </div>
         )}
       </div>
+
+      <section className="settings-card">
+        <h2>{t("Profile picture")}</h2>
+        <ProfilePictureSettings key={user.id} user={user} />
+      </section>
 
       <section className="settings-card">
         <h2>{t("Profile")}</h2>

@@ -1,15 +1,18 @@
 import { useTranslation } from 'react-i18next';
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import logo from "../assets/img/1 ShkermitRTX.png";
 import { useAuth } from "../context/auth-context";
+import type { User } from "../lib/api";
+import ProfileAvatar from "./profile-avatar";
 
 type AccountLinksProps = {
   loading: boolean;
   loggingOut: boolean;
   mobile?: boolean;
-  username?: string;
-  onLogout: () => void;
+  user: User | null;
+  logoutError: string;
+  onLogout: () => Promise<void>;
   onNavigate: () => void;
 };
 
@@ -17,26 +20,71 @@ function AccountLinks({
   loading,
   loggingOut,
   mobile = false,
-  username,
+  user,
+  logoutError,
   onLogout,
   onNavigate,
 }: AccountLinksProps) {
   const { t } = useTranslation();
+  const [accountOpen, setAccountOpen] = useState(false);
+  const menuId = useId();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!accountOpen) return;
+    function closeOutside(event: PointerEvent) {
+      if (event.target instanceof Node && !containerRef.current?.contains(event.target)) setAccountOpen(false);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setAccountOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [accountOpen]);
+
+  function handleNavigate() {
+    setAccountOpen(false);
+    onNavigate();
+  }
   const linkClass = mobile
     ? "block text-lg text-white hover:underline"
     : "text-lg text-white hover:underline";
 
   if (loading) return null;
-  if (username) {
+  if (user) {
     return (
-      <>
-        <Link to="/account" className={linkClass} onClick={onNavigate}>
-          {username}
-        </Link>
-        <button className={`${linkClass} cursor-pointer`} onClick={onLogout} disabled={loggingOut}>
-          {loggingOut ? t("Logging out…") : t("Logout")}
+      <div ref={containerRef} className={`account-menu${mobile ? " account-menu-mobile" : ""}`}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) setAccountOpen(false);
+        }}>
+        <button ref={triggerRef} type="button" className="account-menu-trigger"
+          aria-label={t("Account menu for {{username}}", { username: user.username })}
+          aria-expanded={accountOpen} aria-controls={menuId}
+          onClick={() => setAccountOpen((value) => !value)}>
+          <ProfileAvatar src={user.profilePictureUrl} />
+          <span className="account-menu-username">{user.username}</span>
+          <svg aria-hidden="true" className={`account-menu-chevron${accountOpen ? " is-open" : ""}`}
+            viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="m6 9 6 6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
-      </>
+        <div id={menuId} className="account-menu-dropdown" hidden={!accountOpen}>
+          <Link to="/account" onClick={handleNavigate}>{t("Account settings")}</Link>
+          {user.isAdmin && <Link to="/admin/users" onClick={handleNavigate}>{t("Admin settings")}</Link>}
+          <button type="button" className="account-menu-logout" onClick={() => void onLogout()} disabled={loggingOut}>
+            {loggingOut ? t("Logging out…") : t("Logout")}
+          </button>
+          {logoutError && <p className="form-message form-error" role="alert">{t(logoutError)}</p>}
+        </div>
+      </div>
     );
   }
 
@@ -52,6 +100,7 @@ export default function Header() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
   const { user, loading, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -59,15 +108,17 @@ export default function Header() {
     { name: "Home", href: "/" },
     { name: "Games", href: "/games" },
     { name: "Pictures", href: "/pictures" },
-    ...(user?.isAdmin ? [{ name: "Admin", href: "/admin/users" }] : []),
   ];
 
   async function handleLogout() {
     setLoggingOut(true);
+    setLogoutError("");
     try {
       await logout();
       setOpen(false);
       navigate("/");
+    } catch (error) {
+      setLogoutError(error instanceof Error ? error.message : "Something went wrong.");
     } finally {
       setLoggingOut(false);
     }
@@ -87,7 +138,7 @@ export default function Header() {
       </Link>
 
       {/* Desktop nav */}
-      <nav className="hidden md:block">
+      <nav className="hidden lg:block">
         <ul className="flex items-center gap-4">
           {MenuItems.map((item) => (
             <li key={item.name}>
@@ -101,9 +152,11 @@ export default function Header() {
           ))}
           <li className="flex items-center gap-4">
             <AccountLinks
+              key={user?.id ?? "guest"}
               loading={loading}
               loggingOut={loggingOut}
-              username={user?.username}
+              user={user}
+              logoutError={logoutError}
               onLogout={handleLogout}
               onNavigate={() => setOpen(false)}
             />
@@ -113,7 +166,7 @@ export default function Header() {
 
       {/* Mobile burger button */}
       <button
-        className="md:hidden p-2 rounded hover:bg-green-800 focus:outline-none"
+        className="lg:hidden p-2 rounded hover:bg-green-800 focus-visible:outline-2 focus-visible:outline-lime-300"
         onClick={() => setOpen((s) => !s)}
         aria-label={t("Toggle menu")}
         aria-expanded={open}
@@ -152,10 +205,8 @@ export default function Header() {
       </button>
 
       {/* Mobile menu */}
-      <div
-        className={`absolute top-full left-0 right-0 md:hidden bg-green-900 transition-transform transform origin-top ${
-          open ? "scale-y-100" : "scale-y-0 pointer-events-none"
-        }`}
+      {open && <div
+        className="absolute top-full left-0 right-0 lg:hidden bg-green-900"
         style={{ zIndex: 30 }}
       >
         <ul className="flex flex-col gap-2 p-4">
@@ -172,16 +223,18 @@ export default function Header() {
           ))}
           <li className="flex flex-col items-start gap-2">
             <AccountLinks
+              key={user?.id ?? "guest"}
               loading={loading}
               loggingOut={loggingOut}
               mobile
-              username={user?.username}
+              user={user}
+              logoutError={logoutError}
               onLogout={handleLogout}
               onNavigate={() => setOpen(false)}
             />
           </li>
         </ul>
-      </div>
+      </div>}
     </header>
   );
 }

@@ -18,7 +18,7 @@ async function manageableUser(model, id, actor) {
   return user;
 }
 
-export function createAdminUserService({ userModel, emailVerificationService, withTransaction, boardWallpaperService }) {
+export function createAdminUserService({ userModel, emailVerificationService, withTransaction, boardWallpaperService, profilePictureService }) {
   return {
     async updateBoardWallpaper(id, wallpaper, file) {
       return boardWallpaperService.update(userId(id), wallpaper, file);
@@ -99,6 +99,7 @@ export function createAdminUserService({ userModel, emailVerificationService, wi
         return users.deleteById(user.id);
       });
       await boardWallpaperService.remove(deletedUser.boardWallpaper);
+      await profilePictureService.remove(deletedUser.profilePicture);
     },
 
     async setSuspended(actor, id, suspended) {

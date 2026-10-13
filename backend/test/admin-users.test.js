@@ -255,7 +255,7 @@ test("search is case-insensitive, paginated, and returns no password or token da
   assert.equal(first.body.total, 25);
   assert.equal(first.body.pageSize, 20);
   assert.equal(first.body.users.length, 20);
-  assert.deepEqual(Object.keys(first.body.users[0]).sort(), ["id", "username", "email", "emailVerified", "isAdmin", "isSuspended", "boardWallpaper", "createdAt", "updatedAt", "canManage"].sort());
+  assert.deepEqual(Object.keys(first.body.users[0]).sort(), ["id", "username", "email", "emailVerified", "isAdmin", "isSuspended", "boardWallpaper", "profilePictureUrl", "createdAt", "updatedAt", "canManage"].sort());
   const second = await admin.get("/api/admin/users?search=pagefrog&page=2");
   assert.equal(second.body.users.length, 5);
   assert.equal(new Set([...first.body.users, ...second.body.users].map((user) => user.id)).size, 25);
@@ -393,6 +393,91 @@ test("custom image files are cleaned up after account deletion by the user or an
     const saved = await admin.patch(`/api/admin/users/${target.id}/wallpaper`).attach("image", wallpaperPng, imageAttachment);
     assert.equal(saved.status, 200);
     const filename = wallpaperPath(saved.body.user.boardWallpaper);
+    assert.equal(existsSync(filename), true);
+    const deleted = byAdmin
+      ? await admin.delete(`/api/admin/users/${target.id}`)
+      : await target.agent.delete("/api/account").send({ password: "StrongPass123" });
+    assert.equal(deleted.status, 204);
+    assert.equal(existsSync(filename), false);
+  }
+});
+
+const profilePicturePath = (url) => path.join(directory, "pictures", "profile-pictures", path.basename(url));
+
+test("members can save their own profile picture and restore it after signing in again", async () => {
+  const target = await register("AvatarMember");
+  const other = await register("AvatarOther");
+  const before = (await target.agent.get("/api/auth/me")).body.user;
+  assert.equal(before.profilePictureUrl, null);
+  assert.equal((await request(app).patch("/api/account/profile-picture").attach("image", wallpaperPng, imageAttachment)).status, 401);
+  assert.equal((await request(app).delete("/api/account/profile-picture")).status, 401);
+
+  const saved = await target.agent.patch("/api/account/profile-picture").attach("image", wallpaperPng, imageAttachment);
+  assert.equal(saved.status, 200);
+  const user = saved.body.user;
+  assert.match(user.profilePictureUrl, /^\/api\/profile-pictures\/[a-f0-9-]+\.png$/);
+  for (const key of ["id", "username", "email", "emailVerified", "isAdmin", "isSuspended", "boardWallpaper", "createdAt"]) {
+    assert.deepEqual(user[key], before[key]);
+  }
+  assert.equal("profilePicture" in user, false);
+  assert.equal((await other.agent.get("/api/auth/me")).body.user.profilePictureUrl, null);
+  const content = await request(app).get(user.profilePictureUrl);
+  assert.equal(content.status, 200);
+  assert.match(content.headers["content-type"], /image\/png/);
+  assert.deepEqual(content.body, wallpaperPng);
+  assert.ok(existsSync(profilePicturePath(user.profilePictureUrl)));
+
+  await target.agent.post("/api/auth/logout");
+  await target.agent.post("/api/auth/login").send({ identifier: target.email, password: "StrongPass123" });
+  assert.equal((await target.agent.get("/api/auth/me")).body.user.profilePictureUrl, user.profilePictureUrl);
+  const listing = await admin.get("/api/admin/users?search=AvatarMember");
+  assert.equal(listing.body.users[0].profilePictureUrl, user.profilePictureUrl);
+});
+
+test("replacing and removing a profile picture clean up the previous file", async () => {
+  const target = await register("AvatarReplace");
+  const first = await target.agent.patch("/api/account/profile-picture").attach("image", wallpaperPng, imageAttachment);
+  const second = await target.agent.patch("/api/account/profile-picture").attach("image", wallpaperPng, imageAttachment);
+  assert.equal(second.status, 200);
+  assert.notEqual(second.body.user.profilePictureUrl, first.body.user.profilePictureUrl);
+  assert.equal(existsSync(profilePicturePath(first.body.user.profilePictureUrl)), false);
+  assert.equal(existsSync(profilePicturePath(second.body.user.profilePictureUrl)), true);
+  assert.equal((await request(app).get(first.body.user.profilePictureUrl)).status, 404);
+
+  const removed = await target.agent.delete("/api/account/profile-picture");
+  assert.equal(removed.status, 200);
+  assert.equal(removed.body.user.profilePictureUrl, null);
+  assert.equal(existsSync(profilePicturePath(second.body.user.profilePictureUrl)), false);
+  assert.equal((await target.agent.delete("/api/account/profile-picture")).status, 200);
+  assert.equal((await target.agent.get("/api/auth/me")).body.user.profilePictureUrl, null);
+});
+
+test("invalid profile picture uploads preserve the saved picture and stored files", async () => {
+  const target = await register("AvatarInvalid");
+  const saved = await target.agent.patch("/api/account/profile-picture").attach("image", wallpaperPng, imageAttachment);
+  const filesBefore = readdirSync(path.join(directory, "pictures", "profile-pictures"));
+  const endpoint = "/api/account/profile-picture";
+  const invalidUploads = [
+    () => target.agent.patch(endpoint).send({ profilePictureUrl: "https://example.com/picture.png" }),
+    () => target.agent.patch(endpoint).attach("image", Buffer.from("<svg></svg>"), { filename: "image.svg", contentType: "image/svg+xml" }),
+    () => target.agent.patch(endpoint).attach("image", Buffer.from("not an image"), imageAttachment),
+    () => target.agent.patch(endpoint).attach("image", wallpaperPng, { filename: "image.jpg", contentType: "image/jpeg" }),
+    () => target.agent.patch(endpoint).attach("image", Buffer.alloc(5 * 1024 * 1024 + 1), imageAttachment),
+    () => target.agent.patch(endpoint).attach("image", wallpaperPng, imageAttachment).attach("image", wallpaperPng, imageAttachment),
+    () => target.agent.patch(endpoint).field("userId", String(adminId)).attach("image", wallpaperPng, imageAttachment),
+    () => target.agent.patch(endpoint).field("image", ""),
+  ];
+  for (const upload of invalidUploads) assert.equal((await upload()).status, 400);
+  assert.equal((await target.agent.get("/api/auth/me")).body.user.profilePictureUrl, saved.body.user.profilePictureUrl);
+  assert.deepEqual(readdirSync(path.join(directory, "pictures", "profile-pictures")), filesBefore);
+});
+
+test("profile pictures are removed when a member or administrator deletes the account", async () => {
+  for (const byAdmin of [false, true]) {
+    const target = await register(byAdmin ? "AvatarDeleteAdmin" : "AvatarDeleteSelf");
+    const saved = await target.agent.patch("/api/account/profile-picture").attach("image", wallpaperPng, imageAttachment);
+    assert.equal(saved.status, 200);
+    const filename = profilePicturePath(saved.body.user.profilePictureUrl);
     assert.equal(existsSync(filename), true);
     const deleted = byAdmin
       ? await admin.delete(`/api/admin/users/${target.id}`)

@@ -58,6 +58,8 @@ The account API supports registration, email confirmation, login/logout, session
 
 ### Backend structure
 
+The header shows your profile picture and username. Click them to open **Account settings** or **Logout**; administrators also see **Admin settings**. The same options are available in the mobile menu. In Account settings, choose a JPEG, PNG, WebP, or GIF up to 5 MB, preview it, and select **Save picture**. **Remove picture** restores the default Shkermit avatar. Pictures persist across sessions and devices and are stored under `PICTURE_UPLOAD_DIR/profile-pictures`; replacement, removal, and account deletion clean up the previous file. Apply the committed profile-picture migration with `npm run db:migrate:deploy` in `backend/` when updating an existing installation.
+
 The API is split by responsibility:
 
 - `prisma/` contains the declarative database schema and committed migration history.
