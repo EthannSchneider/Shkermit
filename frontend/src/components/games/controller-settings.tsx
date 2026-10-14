@@ -66,9 +66,9 @@ export function ControllerSettings({ settings, status, onOpen }: ControllerSetti
             aria-modal="true"
             aria-labelledby="controller-settings-title"
             aria-describedby="controller-settings-description"
-            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/25 bg-slate-950 p-5 text-sm text-white shadow-2xl sm:p-7"
+            className="mobile-dialog w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/25 bg-slate-950 p-5 text-sm text-white shadow-2xl sm:p-7"
           >
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
               <h2 id="controller-settings-title" className="text-xl font-bold">{t("Customize controller controls")}</h2>
               <button type="button" onClick={close} className="rounded-lg border border-white/25 px-3 py-2 hover:bg-white/10">{t("Done")}</button>
             </div>
@@ -83,7 +83,7 @@ export function ControllerSettings({ settings, status, onOpen }: ControllerSetti
                       id={`controller-binding-${control}`}
                       value={settings.bindings[control].length === 1 ? settings.bindings[control][0] : 'combined'}
                       onChange={(event) => settings.rebind(control, event.target.value as GamepadInputControl)}
-                      className="min-w-0 flex-1 rounded-lg border border-white/25 bg-slate-900 px-2 py-2"
+                      className="w-full min-w-0 flex-auto sm:w-auto sm:flex-1 rounded-lg border border-white/25 bg-slate-900 px-2 py-2"
                     >
                       {settings.bindings[control].length > 1 && <option value="combined" disabled>{controllerBindingLabel(settings.bindings, control, t)}</option>}
                       {(Object.entries(CONTROLLER_INPUT_LABELS) as [GamepadInputControl, string][]).map(([input, name]) => (

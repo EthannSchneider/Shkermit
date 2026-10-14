@@ -55,7 +55,7 @@ function AccountLinks({
     onNavigate();
   }
   const linkClass = mobile
-    ? "block text-lg text-white hover:underline"
+    ? "flex min-h-11 items-center text-lg text-white hover:underline"
     : "text-lg text-white hover:underline";
 
   if (loading) return null;
@@ -138,7 +138,7 @@ export default function Header() {
       </Link>
 
       {/* Desktop nav */}
-      <nav className="hidden lg:block">
+      <nav className="hidden xl:block">
         <ul className="flex items-center gap-4">
           {MenuItems.map((item) => (
             <li key={item.name}>
@@ -166,10 +166,11 @@ export default function Header() {
 
       {/* Mobile burger button */}
       <button
-        className="lg:hidden p-2 rounded hover:bg-green-800 focus-visible:outline-2 focus-visible:outline-lime-300"
+        className="xl:hidden min-h-11 min-w-11 p-2 rounded hover:bg-green-800 focus-visible:outline-2 focus-visible:outline-lime-300"
         onClick={() => setOpen((s) => !s)}
         aria-label={t("Toggle menu")}
         aria-expanded={open}
+        aria-controls="mobile-navigation"
       >
         {open ? (
           // X icon
@@ -205,8 +206,9 @@ export default function Header() {
       </button>
 
       {/* Mobile menu */}
-      {open && <div
-        className="absolute top-full left-0 right-0 lg:hidden bg-green-900"
+      {open && <nav
+        id="mobile-navigation"
+        className="absolute top-full left-0 right-0 max-h-[calc(100dvh_-_4.75rem)] overflow-y-auto overscroll-contain xl:hidden bg-green-900"
         style={{ zIndex: 30 }}
       >
         <ul className="flex flex-col gap-2 p-4">
@@ -214,7 +216,7 @@ export default function Header() {
             <li key={item.name}>
               <Link
                 to={item.href}
-                className="block text-lg text-white hover:underline"
+                className="flex min-h-11 items-center text-lg text-white hover:underline"
                 onClick={() => setOpen(false)}
               >
                 {t(item.name)}
@@ -234,7 +236,7 @@ export default function Header() {
             />
           </li>
         </ul>
-      </div>}
+      </nav>}
     </header>
   );
 }

@@ -671,5 +671,8 @@
   "Profile picture updated.": "Immagine del profilo aggiornata.",
   "Profile picture removed.": "Immagine del profilo rimossa.",
   "Choose a profile picture.": "Scegli un’immagine del profilo.",
-  "Profile picture not found.": "Immagine del profilo non trovata."
+  "Profile picture not found.": "Immagine del profilo non trovata.",
+  "Snake game board. Swipe to steer.": "Tabellone di Snake. Scorri per sterzare.",
+  "Tap Start New Game to play. Swipe or use the direction buttons to steer.": "Tocca Nuova partita per giocare. Scorri o usa i pulsanti direzionali.",
+  "move up": "muovi in alto"
 }

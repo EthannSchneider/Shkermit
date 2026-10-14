@@ -16,13 +16,14 @@ type BoardGridProps = {
 
 export function BoardGrid({ cells, cols, rows, width, height, accent, label, wallpaper, imagePreviewUrl }: BoardGridProps) {
   return (
-    <div>
+    <div className="min-w-0">
       {label && <p className="mb-2 text-center text-[9px]" style={{ color: accent }}>{label}</p>}
       <div
-        className="grid overflow-hidden rounded-xl border-2 bg-[#020704] p-1 shadow-[0_0_60px_rgba(118,255,76,0.08)] transition-[height] duration-700 ease-out motion-reduce:transition-none"
+        className="grid overflow-hidden rounded-xl border-2 bg-[#020704] p-1 shadow-[0_0_60px_rgba(118,255,76,0.08)] transition-[height,aspect-ratio] duration-700 ease-out motion-reduce:transition-none"
         style={{
           width,
           height,
+          aspectRatio: `${cols} / ${rows}`,
           backgroundImage: getBoardWallpaper(wallpaper, imagePreviewUrl).backgroundImage,
           backgroundSize: 'cover',
           backgroundPosition: 'center',

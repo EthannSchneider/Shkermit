@@ -35,6 +35,68 @@ input {
   font: inherit;
 }
 
+body {
+  overflow-wrap: anywhere;
+}
+
+#root,
+#root > *,
+.auth-card,
+.settings-card,
+.gallery-heading > *,
+.admin-picture-card > *,
+.admin-users-content > * {
+  min-width: 0;
+}
+
+button,
+a,
+input,
+select {
+  touch-action: manipulation;
+}
+
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+.mobile-dialog {
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overscroll-behavior: contain;
+}
+
+.snake-board {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  touch-action: none;
+}
+
+.game-touch-button {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.tetris-board-group {
+  max-width: var(--board-max-width);
+}
+
+@media (max-width: 1279px) {
+  .tetris-board-group {
+    /* Leave room to see the board and its controls together on a phone.
+       Use the initial row count so later levels still grow the board. */
+    max-width: min(var(--board-max-width), calc(max(240px, 100svh - 22rem) * var(--board-width-ratio) + var(--board-gap)));
+  }
+}
+
 .account-cta {
   border: 1px solid rgb(134 239 172);
   border-radius: 0.375rem;
@@ -491,6 +553,7 @@ input {
   position: relative;
   width: min(100%, 40rem);
   max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
   overflow-y: auto;
 }
 
@@ -757,6 +820,11 @@ input {
 }
 
 @media (max-width: 700px) {
+  .snake-board {
+    max-width: min(100%, max(12rem, calc(100svh - 22rem)));
+    margin-inline: auto;
+  }
+
   .gallery-heading,
   .admin-picture-card {
     align-items: stretch;
@@ -775,5 +843,59 @@ input {
   .gallery-heading-actions > * {
     width: 100%;
     text-align: center;
+  }
+
+  .auth-page,
+  .account-page {
+    padding: 2rem 1rem;
+  }
+
+  .auth-card,
+  .settings-card {
+    padding: 1.25rem;
+  }
+
+  .admin-modal-actions,
+  .admin-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-user-search > div,
+  .admin-user-pagination {
+    flex-wrap: wrap;
+  }
+
+  .admin-user-pagination span {
+    order: -1;
+    width: 100%;
+    text-align: center;
+  }
+
+  .admin-user-table-wrapper {
+    max-width: 100%;
+    overscroll-behavior-x: contain;
+  }
+
+  .admin-user-table {
+    min-width: 42rem;
+  }
+}
+
+@media (pointer: coarse) {
+  button,
+  select,
+  .account-cta,
+  .admin-navigation a {
+    min-height: 2.75rem;
+  }
+
+  input:not([type="radio"]):not([type="checkbox"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 1rem;
+  }
+
+  input[type="range"] {
+    min-height: 2.75rem;
   }
 }

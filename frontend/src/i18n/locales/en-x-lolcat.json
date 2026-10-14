@@ -671,5 +671,8 @@
   "Profile picture updated.": "PROFILE PICSHUR UPDATED.",
   "Profile picture removed.": "PROFILE PICSHUR REMOVED.",
   "Choose a profile picture.": "CHOOSE A PROFILE PICSHUR.",
-  "Profile picture not found.": "PROFILE PICSHUR NOT FOUND."
+  "Profile picture not found.": "PROFILE PICSHUR NOT FOUND.",
+  "Snake game board. Swipe to steer.": "SNEK BOARD. SWIPE TO STEER.",
+  "Tap Start New Game to play. Swipe or use the direction buttons to steer.": "TAP START NEW GAEM TO PLAY. SWIPE OR USE TEH ARROW BUTTONZ TO STEER.",
+  "move up": "GO UP"
 }

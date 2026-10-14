@@ -56,7 +56,7 @@ function Footer() {
                       href={link.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded py-1 font-sans text-base text-green-50 transition-colors hover:text-green-200 hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-green-200"
+                      className="inline-flex min-h-11 items-center gap-2 rounded py-1 font-sans text-base text-green-50 transition-colors hover:text-green-200 hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-green-200"
                     >
                       {t(link.label)}
                       <span aria-hidden="true" className="text-green-300">↗</span>

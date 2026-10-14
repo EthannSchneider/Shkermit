@@ -165,9 +165,9 @@ export default function ShkermitClicker() {
    }, [score, clicksPerSecond, unlockedUpgrades, unlockedWeapons, shkermitesPerClick, hasWon]);
 
   return (
-    <div ref={gameRootRef} className="min-h-screen bg-linear-to-b from-purple-900 via-indigo-900 to-black text-white p-8 [&_button:focus]:outline-2 [&_button:focus]:outline-offset-4 [&_button:focus]:outline-yellow-300">
+    <div ref={gameRootRef} className="min-h-screen bg-linear-to-b from-purple-900 via-indigo-900 to-black text-white px-4 py-8 sm:p-8 [&_button:focus]:outline-2 [&_button:focus]:outline-offset-4 [&_button:focus]:outline-yellow-300">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-8 text-transparent bg-clip-text bg-linear-to-b from-purple-400 to-pink-500"> {t("⭐ Shkermit Clicker ⭐")} </h1>
+        <h1 className="text-3xl sm:text-4xl font-bold text-center mb-8 text-transparent bg-clip-text bg-linear-to-b from-purple-400 to-pink-500"> {t("⭐ Shkermit Clicker ⭐")} </h1>
         {user && (
           <p className="mb-6 text-center text-sm text-yellow-300">
             🏆 {t("{{username}}'s best: {{score}}", { username: user.username, score: bestScore.toLocaleString(i18n.resolvedLanguage) })}
@@ -177,13 +177,13 @@ export default function ShkermitClicker() {
         <ControllerHelp status={controllerStatus} settings={controllerSettings} />
 
         <div className="flex flex-col lg:flex-row gap-8 justify-center lg:items-start items-center-safe">
-          <div className="flex flex-col items-center gap-6">
+          <div className="flex w-full min-w-0 max-w-md flex-col items-center gap-6">
             <Shkermit score={score} handleMainClick={handleMainClick} />
 
             <Stats clicksPerSecond={clicksPerSecond} shkermitesPerClick={shkermitesPerClick} />
           </div>
 
-          <div className="flex-1 max-w-md">
+          <div className="w-full min-w-0 flex-1 max-w-md">
             <Shop score={score} upgradeCounts={upgradeCounts} onPurchase={handlePurchase} />
             <div className="mt-4">
               <WeaponsShop score={score} weaponCounts={weaponCounts} onPurchase={handlePurchase} />

@@ -72,7 +72,7 @@ export function BoardWallpaperSettings({ wallpaper, allowCustomUpload = false, o
       <fieldset disabled={busy} className="space-y-4">
         <legend className="mb-4 text-sm text-white/70">{t("Choose your Stacks board wallpaper")}</legend>
         <div className="flex flex-wrap items-start gap-5">
-          <div className="grid min-w-48 flex-1 grid-cols-2 gap-3">
+          <div className="grid w-full min-w-0 flex-auto grid-cols-1 min-[400px]:grid-cols-2 sm:flex-1 gap-3">
             {choices.map((option) => (
               <label key={option.id} className={`board-wallpaper-choice flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm text-white ${selected === option.id ? 'border-lime-300 bg-lime-300/10' : 'border-white/20 bg-white/5'}`}>
                 <input type="radio" name={groupName} value={option.id} checked={selected === option.id}

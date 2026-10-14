@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { localizeTetrisMessage } from './localize-message';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import shkermitImage from '../../../assets/img/3 TeteShkermit RTX.png';
 import { BoardGrid } from './board-grid';
 import { KEYBOARD_ACTION_LABELS, KEYBOARD_ACTIONS, MOVEMENT_REPEAT, PLAYER_COLORS } from './constants';
@@ -92,9 +92,15 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
   const gameMessage = localizeTetrisMessage(game.message, t, playerLabel);
   const boardRows = game.board.length;
   const baseBoardWidth = game.mode === 'duel' ? 300 : game.mode === 'coop' ? 560 : 400;
-  const baseViewportWidth = game.mode === 'duel' ? 44 : game.mode === 'coop' ? 92 : 82;
-  const boardWidth = `min(${baseViewportWidth}vw, ${baseBoardWidth}px)`;
-  const boardHeight = `min(${baseViewportWidth * boardRows / game.cols}vw, ${baseBoardWidth * boardRows / game.cols}px)`;
+  const boardGroupWidth = game.mode === 'duel' ? 2 * baseBoardWidth + 16 : baseBoardWidth;
+  const boardStyle = {
+    '--board-max-width': `${boardGroupWidth}px`,
+    '--board-width-ratio': game.cols / 20 * (game.mode === 'duel' ? 2 : 1),
+    '--board-gap': game.mode === 'duel' ? '16px' : '0px',
+  } as CSSProperties;
+  // Fit the containing column, including padding and the gap between duel boards.
+  const boardWidth = '100%';
+  const boardHeight = 'auto';
   const controllerStatus = useGamepad({
     enabled: !bindingAction && !isAntoineLoupOpen && !controllerSettings.settingsOpen && !autoSettingsOpen && !soundSettingsOpen && !wallpaperSettingsOpen,
     bindings: controllerSettings.bindings,
@@ -136,16 +142,16 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
         <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(rgba(151,255,99,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(151,255,99,.05) 1px, transparent 1px)', backgroundSize: '34px 34px' }} />
         <img src={shkermitImage} alt="" className="pointer-events-none absolute -bottom-20 -right-24 w-110 opacity-15 grayscale" />
         <section className="relative mx-auto max-w-6xl">
-          <div className="mb-10 flex items-center justify-between gap-4">
+          <div className="mb-10 flex flex-wrap items-center justify-between gap-4">
             <a href="/games" className="inline-flex items-center gap-2 text-xs text-lime-200/60 transition hover:text-lime-200">{t("← BACK TO THE ARCADE")}</a>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {wallpaperButton}
               {soundButton}
             </div>
           </div>
           <div className="mb-12 max-w-3xl">
             <p className="mb-4 text-xs tracking-[0.35em] text-lime-300">{t("SHKERMIT ARCADE / 03")}</p>
-            <h1 className="text-5xl leading-[0.9] text-white sm:text-7xl">{t("SHKERMIT")}<br /><span className="text-lime-300">{t("STACKS")}</span></h1>
+            <h1 className="text-4xl leading-[0.9] min-[400px]:text-5xl text-white sm:text-7xl">{t("SHKERMIT")}<br /><span className="text-lime-300">{t("STACKS")}</span></h1>
             <p className="mt-6 max-w-xl text-sm leading-7 text-white/55 sm:text-base">{t("Classic falling blocks, remixed for the pond. Clear lines, build combos, and charge Shkermit's emergency Frog Flush.")}</p>
           </div>
 
@@ -235,7 +241,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
               </div>
               <button onClick={resetBindings} className="rounded-lg border border-white/10 px-3 py-2 text-[9px] text-white/40 transition hover:bg-white/8 hover:text-white/70">{t("RESET DEFAULTS")}</button>
             </div>
-            <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="mt-5 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:grid-cols-4">
               {KEYBOARD_ACTIONS.map((action) => {
                 const listening = bindingAction === action;
                 return (
@@ -256,15 +262,14 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
           </section>
 
           {controllerHelp}
-
           <button
             type="button"
             onClick={() => setIsAntoineLoupOpen(true)}
             aria-haspopup="dialog"
             aria-expanded={isAntoineLoupOpen}
-            className="mt-8 flex w-fit cursor-zoom-in items-center gap-5 rounded-2xl border border-lime-200/15 bg-lime-200/4 px-5 py-4 text-left shadow-[0_0_28px_rgba(117,255,76,0.06)] transition hover:border-lime-200/35 hover:bg-lime-200/7 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-lime-200/70"
+            className="mt-8 flex w-full max-w-lg cursor-zoom-in items-center gap-3 rounded-2xl border border-lime-200/15 bg-lime-200/4 px-5 py-4 text-left shadow-[0_0_28px_rgba(117,255,76,0.06)] transition hover:border-lime-200/35 hover:bg-lime-200/7 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-lime-200/70"
           >
-            <img src={antoineLoupImage} alt={t("Antoine Loup")} className="h-20 w-20 rounded-full border border-lime-200/30 object-cover ring-2 ring-lime-200/10" />
+            <img src={antoineLoupImage} alt={t("Antoine Loup")} className="h-14 w-14 shrink-0 sm:h-20 sm:w-20 rounded-full border border-lime-200/30 object-cover ring-2 ring-lime-200/10" />
             <span className="text-xs leading-6 tracking-[0.16em] text-lime-200/60">{t("APPROVED BY")}<br /><span className="text-lg text-lime-200/95">{t("ANTOINE LOUP")}</span><br /><span className="text-[10px] text-white/35">{t("BEST PLAYER OF TETRIS IN SWITZERLAND")}</span></span>
           </button>
 
@@ -283,7 +288,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
               role="dialog"
               aria-modal="true"
               aria-labelledby="antoine-loup-dialog-title"
-              className="relative cursor-default rounded-2xl border border-lime-200/25 bg-[#061008] p-3 shadow-[0_0_80px_rgba(117,255,76,0.18)] sm:p-5"
+              className="mobile-dialog relative max-w-full overflow-y-auto cursor-default rounded-2xl border border-lime-200/25 bg-[#061008] p-3 shadow-[0_0_80px_rgba(117,255,76,0.18)] sm:p-5"
               onClick={(event) => event.stopPropagation()}
             >
               <button
@@ -296,7 +301,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
               <img
                 src={antoineLoupImage}
                 alt={t("Antoine Loup")}
-                className="max-h-[78vh] max-w-[88vw] rounded-xl object-contain sm:max-w-4xl"
+                className="max-h-[70dvh] max-w-full rounded-xl object-contain sm:max-w-4xl"
               />
               <div className="px-2 pb-1 pt-4 text-center">
                 <h2 id="antoine-loup-dialog-title" className="text-lg text-lime-200">{t("ANTOINE LOUP")}</h2>
@@ -335,7 +340,7 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
         </header>
 
         <div className="grid items-start gap-5 xl:grid-cols-[220px_minmax(320px,660px)_250px] xl:justify-center">
-          <aside className="order-2 grid grid-cols-3 gap-3 xl:order-1 xl:grid-cols-1">
+          <aside className="order-2 grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 xl:order-1 xl:grid-cols-1">
             <div className="rounded-xl border border-white/8 bg-white/3.5 p-4">
               <p className="text-[9px] tracking-[0.2em] text-white/35">{t("SCORE / BEST")}</p>
               <p className="mt-2 text-xl text-white sm:text-2xl">{(game.mode === 'duel' ? game.playerStats[coop.playerId || 1].score : game.score).toLocaleString(i18n.resolvedLanguage)}</p>
@@ -354,12 +359,12 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
               <p className="mt-2 text-sm text-pink-200">{(game.mode === 'duel' ? game.playerStats[coop.playerId || 1].combo : game.combo) > 0 ? t("{{value1}}×", { value1: (game.mode === 'duel' ? game.playerStats[coop.playerId || 1].combo : game.combo) + 1 }) : '—'}</p>
             </div>
             {game.mode === 'duel' ? (
-              <div className="col-span-3 rounded-xl border border-orange-300/15 bg-orange-300/4 p-4 xl:col-span-1">
+              <div className="col-span-2 rounded-xl border border-orange-300/15 bg-orange-300/4 p-4 sm:col-span-3 xl:col-span-1">
                 <p className="text-[9px] text-orange-200">{t("GARBAGE ATTACKS")}</p>
                 <p className="mt-3 text-[9px] leading-5 text-white/40">{t("2 / 3 / 4 lines → 1 / 2 / 4 rows")}<br />{t("T-spin single / double / triple → 2 / 4 / 6 rows")}<br />{t("Back-to-back clears → +1 row")}</p>
               </div>
             ) : (
-              <div className="col-span-3 rounded-xl border border-lime-300/15 bg-lime-300/4 p-4 xl:col-span-1">
+              <div className="col-span-2 rounded-xl border border-lime-300/15 bg-lime-300/4 p-4 sm:col-span-3 xl:col-span-1">
                 <div className="mb-2 flex justify-between text-[9px]"><span className="text-lime-200">{t("FROG FLUSH")}</span><span className="text-white/40">{game.meter}%</span></div>
                 <div className="h-2 overflow-hidden rounded-full bg-black/40"><div className="h-full bg-linear-to-r from-lime-500 to-yellow-200 transition-all" style={{ width: `${game.meter}%` }} /></div>
                 <p className="mt-3 text-[9px] leading-4 text-white/35">{t("Fill by clearing lines. Press")} <span className="text-white">{t(keyBindings.frogFlush.label)}</span> {t("at 100% to wash away two danger rows.")}</p>
@@ -368,10 +373,10 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
           </aside>
 
           <section className="order-1 flex min-w-0 flex-col items-center xl:order-2">
-            <div className="mb-2 flex w-full items-center justify-between gap-3 text-[9px] text-white/35" style={{ maxWidth: game.mode === 'duel' ? 640 : baseBoardWidth }}>
+            <div className="mb-2 flex w-full items-center justify-between gap-3 text-[9px] text-white/35" style={{ maxWidth: boardGroupWidth }}>
               <span className={game.mode === 'duel' ? 'text-orange-200' : game.mode === 'coop' ? 'text-pink-200' : 'text-lime-200'}>{game.mode === 'duel' ? t("DUEL") : game.mode === 'coop' ? t("CO-OP") : t("SOLO")}</span><span className="text-right">{gameMessage}</span><span />
             </div>
-            <div className="relative">
+            <div className="tetris-board-group relative w-full min-w-0" style={boardStyle}>
               {game.mode === 'duel' ? (
                 <div className="grid grid-cols-2 gap-2 sm:gap-4">
                   {([1, 2] as PlayerId[]).map((player) => (
@@ -401,11 +406,11 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
                 />
               )}
               {(game.status === 'paused' || game.status === 'gameover') && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#020704]/90 p-8 text-center backdrop-blur-sm">
+                <div className="absolute inset-0 flex flex-col items-center justify-center-safe overflow-y-auto bg-[#020704]/90 p-3 sm:p-8 text-center backdrop-blur-sm">
                   <img src={shkermitImage} alt={t("Shkermit")} className="mb-4 h-24 w-24 object-contain" />
                   <p className="text-[10px] tracking-[0.3em] text-lime-300">{game.status === 'paused' ? t("POND BREAK") : game.mode === 'duel' ? t("DUEL OVER") : t("STACK OVER")}</p>
                   <h2 className="mt-3 text-2xl">{game.status === 'paused' ? t("PAUSED") : game.mode === 'duel' && game.winner ? t("{{value1}} WINS", { value1: playerLabel(game.winner) }) : t("{{value1}} PTS", { value1: game.score.toLocaleString(i18n.resolvedLanguage) })}</h2>
-                  <div className="mt-6 flex gap-2">
+                  <div className="mt-6 flex flex-wrap justify-center gap-2">
                     {game.status === 'paused' && <button onClick={() => sendCommand('toggle_pause')} className="rounded-lg bg-lime-300 px-4 py-3 text-[10px] text-[#061008]">{t("KEEP STACKING")}</button>}
                     <button onClick={() => sendCommand('restart')} className="rounded-lg border border-white/15 bg-white/8 px-4 py-3 text-[10px]">{t("RESTART")}</button>
                   </div>
@@ -418,9 +423,28 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
                 </div>
               )}
             </div>
+            <div className="mt-3 w-full rounded-xl border border-lime-300/10 bg-white/2.5 p-3">
+              <p className="mb-2 text-center text-[9px]" style={{ color: PLAYER_COLORS[game.mode !== 'solo' ? coop.playerId || 1 : 1] }}>
+                {game.mode !== 'solo' ? t("{{value1}} TOUCH CONTROLS", { value1: playerLabel(coop.playerId || 1) }) : t("TOUCH CONTROLS")}
+              </p>
+              <ControlPad
+                player={game.mode !== 'solo' ? coop.playerId || 1 : 1}
+                bindings={keyBindings}
+                onAction={sendAction}
+                disabled={game.status !== 'playing' || autoSettingsOpen || soundSettingsOpen || wallpaperSettingsOpen || controllerSettings.settingsOpen}
+              />
+              {game.mode !== 'duel' && (
+                <button type="button" onClick={() => sendCommand('frog_flush')} disabled={game.status !== 'playing' || game.meter < 100} className="mt-3 w-full rounded-lg border border-lime-300/25 bg-lime-300/10 px-3 py-3 text-xs text-lime-200 disabled:opacity-35">{t("FROG FLUSH")} · {game.meter}%</button>
+              )}
+            </div>
+            <div className="mt-3 flex w-full flex-wrap gap-2">
+              <button onClick={() => sendCommand('toggle_pause')} className="flex-1 rounded-lg border border-white/10 bg-white/4 py-3 text-[9px] text-white/50 hover:bg-white/10">{game.status === 'paused' ? t("RESUME") : t("PAUSE")} · {t(keyBindings.pause.label)}</button>
+              <button onClick={() => sendCommand('restart')} aria-label={t("RESTART")} className="rounded-lg border border-white/10 bg-white/4 px-4 py-3 text-[9px] text-white/50 hover:bg-white/10">↻</button>
+              {game.mode !== 'solo' && <button onClick={leaveCoop} className="rounded-lg border border-pink-200/15 bg-pink-300/4 px-3 py-3 text-[9px] text-pink-100/55">{t("LEAVE")}</button>}
+            </div>
           </section>
 
-          <aside className="order-3 space-y-3">
+          <aside className="order-3 min-w-0 space-y-3">
             <div className="grid gap-3">
               {(game.mode !== 'solo' ? [1, 2] as PlayerId[] : [1] as PlayerId[]).map((player) => {
                 const isLocalPlayer = game.mode === 'solo' || coop.playerId === player;
@@ -456,26 +480,11 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
                 );
               })}
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => sendCommand('toggle_pause')} className="flex-1 rounded-lg border border-white/10 bg-white/4 py-3 text-[9px] text-white/50 hover:bg-white/10">{game.status === 'paused' ? t("RESUME") : t("PAUSE")} · {t(keyBindings.pause.label)}</button>
-              <button onClick={() => sendCommand('restart')} className="rounded-lg border border-white/10 bg-white/4 px-4 py-3 text-[9px] text-white/50 hover:bg-white/10">↻</button>
-              {game.mode !== 'solo' && <button onClick={leaveCoop} className="rounded-lg border border-pink-200/15 bg-pink-300/4 px-3 py-3 text-[9px] text-pink-100/55">{t("LEAVE")}</button>}
-            </div>
           </aside>
         </div>
 
         <div className="mt-6 grid gap-3">
           {controllerHelp}
-          <div className="rounded-xl border border-lime-300/10 bg-white/2.5 p-3">
-            <p className="mb-2 text-center text-[9px]" style={{ color: PLAYER_COLORS[game.mode !== 'solo' ? coop.playerId || 1 : 1] }}>
-              {game.mode !== 'solo' ? t("{{value1}} TOUCH CONTROLS", { value1: playerLabel(coop.playerId || 1) }) : t("TOUCH CONTROLS")}
-            </p>
-            <ControlPad
-              player={game.mode !== 'solo' ? coop.playerId || 1 : 1}
-              bindings={keyBindings}
-              onAction={sendAction}
-            />
-          </div>
         </div>
       </div>
     </main>

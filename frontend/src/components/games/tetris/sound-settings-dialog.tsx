@@ -40,7 +40,7 @@ export function SoundSettingsDialog({ controller }: { controller: TetrisGameCont
       }}
       aria-labelledby="sound-settings-title"
       aria-describedby="sound-settings-description"
-      className="fixed inset-0 m-auto max-h-[90vh] w-[calc(100%_-_2rem)] max-w-lg overflow-y-auto rounded-2xl border border-lime-300/25 bg-[#061008] p-5 text-white shadow-2xl backdrop:bg-black/80 backdrop:backdrop-blur-sm sm:p-7"
+      className="mobile-dialog fixed inset-0 m-auto w-[calc(100%_-_2rem)] max-w-lg overflow-y-auto rounded-2xl border border-lime-300/25 bg-[#061008] p-5 text-white shadow-2xl backdrop:bg-black/80 backdrop:backdrop-blur-sm sm:p-7"
     >
       <div className="flex items-start justify-between gap-4">
         <h2 id="sound-settings-title" className="text-xl text-lime-200">{t("Sound options")}</h2>

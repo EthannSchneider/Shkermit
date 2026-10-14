@@ -49,14 +49,14 @@ export default function Victory({
 
       {showCelebration && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="victory-title"
         >
-          <div className="w-full max-w-lg rounded-3xl border-2 border-yellow-400 bg-linear-to-b from-purple-900 to-indigo-950 p-8 text-center shadow-2xl shadow-yellow-500/30">
+          <div className="mobile-dialog w-full max-w-lg overflow-y-auto rounded-3xl border-2 border-yellow-400 bg-linear-to-b from-purple-900 to-indigo-950 p-4 sm:p-8 text-center shadow-2xl shadow-yellow-500/30">
             <div className="text-7xl" aria-hidden="true">🏆</div>
-            <h2 id="victory-title" className="mt-4 text-4xl font-bold text-yellow-300"> {t("Victory!")} </h2>
+            <h2 id="victory-title" className="mt-4 text-3xl sm:text-4xl font-bold text-yellow-300"> {t("Victory!")} </h2>
             <p className="mt-4 text-lg text-white"> {t("You spent {{cost}} shkermites and conquered the clicker!", { cost: VICTORY_COST.toLocaleString(i18n.resolvedLanguage) })} </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <button

@@ -41,6 +41,7 @@ export default function SnakeGame() {
   const turnPendingRef = useRef(false);
   const highScoreRef = useRef(highScore);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const swipeRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
 
   useEffect(() => {
     const img = new Image();
@@ -255,22 +256,40 @@ export default function SnakeGame() {
   }, [draw]);
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-green-900 via-emerald-900 to-black text-white p-8">
+    <main className="min-h-screen bg-linear-to-b from-green-900 via-emerald-900 to-black text-white px-4 py-8 sm:p-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-8 text-transparent bg-clip-text bg-linear-to-b from-green-400 to-emerald-500"> {t("🐍 Snake Game")} </h1>
+        <h1 className="text-3xl sm:text-4xl font-bold text-center mb-8 text-transparent bg-clip-text bg-linear-to-b from-green-400 to-emerald-500"> {t("🐍 Snake Game")} </h1>
 
-        <div className="flex flex-col lg:flex-row gap-8 justify-center items-start">
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-green-400/50">
+        <div className="flex flex-col xl:flex-row gap-6 justify-center items-center xl:items-start">
+          <div className="w-full min-w-0 max-w-[650px] xl:flex-[2] bg-white/10 backdrop-blur-sm rounded-2xl p-3 sm:p-6 shadow-xl border border-green-400/50">
             <canvas
               ref={canvasRef}
               width={CANVAS_SIZE}
               height={CANVAS_SIZE}
-              className="rounded-lg shadow-lg"
+              aria-label={t("Snake game board. Swipe to steer.")}
+              className="snake-board rounded-lg shadow-lg"
+              onPointerDown={(event) => {
+                if (!event.isPrimary || event.button !== 0) return;
+                swipeRef.current = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+                event.currentTarget.setPointerCapture(event.pointerId);
+              }}
+              onPointerMove={(event) => {
+                const start = swipeRef.current;
+                if (!start || start.pointerId !== event.pointerId) return;
+                const dx = event.clientX - start.x;
+                const dy = event.clientY - start.y;
+                if (Math.max(Math.abs(dx), Math.abs(dy)) < 18) return;
+                handleControl(Math.abs(dx) > Math.abs(dy) ? dx > 0 ? 'right' : 'left' : dy > 0 ? 'down' : 'up');
+                swipeRef.current = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+              }}
+              onPointerUp={() => { swipeRef.current = null; }}
+              onPointerCancel={() => { swipeRef.current = null; }}
+              onLostPointerCapture={() => { swipeRef.current = null; }}
             />
             {!gameStarted && (
               <div className="text-center mt-4">
-                <p className="text-2xl font-bold text-green-400 mb-2">{t("Press Enter, Space, or {{control}} to start!", { control: startControlLabel })}</p>
-                <p className="text-gray-300">{t("Use arrow keys or your controller controls to move")}</p>
+                <p className="text-lg font-bold text-green-400 mb-2">{t("Tap Start New Game to play. Swipe or use the direction buttons to steer.")}</p>
+                <p className="text-sm text-gray-300">{t("Press Enter, Space, or {{control}} to start!", { control: startControlLabel })}</p>
               </div>
             )}
             {isPaused && !gameOver && <p className="mt-4 text-center text-yellow-400">{t("Paused · P or {{control}} to resume", { control: pauseControlLabel })}</p>}
@@ -287,9 +306,31 @@ export default function SnakeGame() {
                 > {t("Play Again")} </button>
               </div>
             )}
+            <div className="mt-4" role="group" aria-label={t("TOUCH CONTROLS")}>
+              <div className="mx-auto grid max-w-60 grid-cols-3 gap-2">
+                {(['up', 'left', 'down', 'right'] as const).map((control) => (
+                  <button
+                    key={control}
+                    type="button"
+                    disabled={!gameStarted || gameOver || isPaused}
+                    aria-label={t(`move ${control}`)}
+                    className={`game-touch-button rounded-lg bg-green-700 text-2xl active:bg-green-500 disabled:opacity-40 ${control === 'up' ? 'col-start-2 row-start-1' : 'row-start-2'}`}
+                    onPointerDown={(event) => {
+                      if (event.isPrimary && event.button === 0) handleControl(control);
+                    }}
+                    onClick={(event) => { if (event.detail === 0) handleControl(control); }}
+                    onContextMenu={(event) => event.preventDefault()}
+                  >{{ up: '↑', left: '←', down: '↓', right: '→' }[control]}</button>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                <button type="button" onClick={resetGame} className="rounded-lg bg-green-600 px-4 py-3 text-sm font-bold">{gameOver ? t("Play Again") : t("Start New Game")}</button>
+                <button type="button" onClick={() => handleControl('start')} disabled={!gameStarted || gameOver} className="rounded-lg border border-green-400/50 px-4 py-3 text-sm disabled:opacity-40">{isPaused ? t("RESUME") : t("PAUSE")}</button>
+              </div>
+            </div>
           </div>
 
-          <div className="flex-1 max-w-md">
+          <div className="w-full min-w-0 xl:flex-1 max-w-md">
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-6 border border-green-400/50">
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold text-green-300 mb-4">{t("📊 Score")}</h2>
@@ -340,6 +381,6 @@ export default function SnakeGame() {
           <p className="text-gray-400"> {t("Eat the red food to grow! Avoid hitting the walls or your own tail! 🎯")} </p>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

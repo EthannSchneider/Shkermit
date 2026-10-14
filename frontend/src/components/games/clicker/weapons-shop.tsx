@@ -71,7 +71,7 @@ const weapons: Weapon[] = [
 export default function WeaponsShop({ score, weaponCounts, onPurchase }: WeaponsShopProps) {
   const { t, i18n } = useTranslation();
   return (
-    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 shadow-xl h-[500px] overflow-y-auto">
+    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-xl lg:h-[500px] lg:overflow-y-auto">
       <h3 className="text-2xl font-bold mb-6 text-red-300">{t("Weapons Shop 🔫")}</h3>
 
       <div className="space-y-3">
@@ -92,21 +92,21 @@ export default function WeaponsShop({ score, weaponCounts, onPurchase }: Weapons
                   : 'bg-gray-500/30 border border-gray-400 opacity-50 cursor-not-allowed'
               }`}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex w-full min-w-0 items-center gap-3">
                 <img
                   src={weapon.image}
                   alt={t(weapon.name)}
-                  className="h-16 w-16 object-contain"
+                  className="h-12 w-12 shrink-0 sm:h-16 sm:w-16 object-contain"
                 />
-                <div className="text-left">
-                  <h4 className="font-bold text-lg">
+                <div className="min-w-0 text-left">
+                  <h4 className="font-bold text-sm sm:text-lg">
                     {t(count > 0 ? weapon.namePlural || weapon.name : weapon.name)}
                   </h4>
                   <p className="text-sm opacity-80">{t(weapon.description)}</p>
                 </div>
               </div>
-              <div className="w-full flex justify-between items-center pt-2 border-t border-white/10">
-                <div className="bg-black/30 rounded-lg px-3 py-2 flex-1 text-center">
+              <div className="w-full flex flex-wrap gap-2 justify-between items-center pt-2 border-t border-white/10">
+                <div className="bg-black/30 rounded-lg px-3 py-2 min-w-0 flex-1 text-center">
                   <div className="text-lg font-bold text-yellow-400">
                     {weapon.cost.toLocaleString(i18n.resolvedLanguage)}
                   </div>

@@ -671,5 +671,8 @@
   "Profile picture updated.": "Profile picture updated.",
   "Profile picture removed.": "Profile picture removed.",
   "Choose a profile picture.": "Choose a profile picture.",
-  "Profile picture not found.": "Profile picture not found."
+  "Profile picture not found.": "Profile picture not found.",
+  "Snake game board. Swipe to steer.": "Snake game board. Swipe to steer.",
+  "Tap Start New Game to play. Swipe or use the direction buttons to steer.": "Tap Start New Game to play. Swipe or use the direction buttons to steer.",
+  "move up": "move up"
 }

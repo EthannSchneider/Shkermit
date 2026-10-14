@@ -27,7 +27,7 @@ export function BoardWallpaperDialog({ onClose }: { onClose: () => void }) {
     <dialog ref={dialogRef} aria-labelledby="board-wallpaper-title"
       onCancel={(event) => { event.preventDefault(); onClose(); }}
       onKeyDown={(event) => event.stopPropagation()}
-      className="fixed inset-0 m-auto max-h-[90vh] w-[calc(100%_-_2rem)] max-w-xl overflow-y-auto rounded-2xl border border-lime-300/25 bg-[#061008] p-5 text-white shadow-2xl backdrop:bg-black/80 sm:p-7">
+      className="mobile-dialog fixed inset-0 m-auto w-[calc(100%_-_2rem)] max-w-xl overflow-y-auto rounded-2xl border border-lime-300/25 bg-[#061008] p-5 text-white shadow-2xl backdrop:bg-black/80 sm:p-7">
       <div className="mb-5 flex items-center justify-between gap-3">
         <h2 id="board-wallpaper-title" className="text-lg text-lime-200">{t("Board wallpaper")}</h2>
         <button type="button" onClick={onClose} autoFocus className="rounded-lg border border-white/25 px-3 py-2 text-sm">{t("Done")}</button>
