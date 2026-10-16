@@ -546,15 +546,13 @@ function useTetrisGame() {
   }, [movePlayer, sendSocketMessage]);
 
   const sendCommand = useCallback((command: GameCommand) => {
-    if (command === 'restart') setAutoUserId(null);
     if (gameRef.current.mode === 'solo') {
       if (command === 'toggle_pause') togglePause();
-      if (command === 'restart') startGame('solo');
       if (command === 'frog_flush') activateFrogFlush();
       return;
     }
     sendSocketMessage({ type: 'command', command });
-  }, [activateFrogFlush, sendSocketMessage, startGame, togglePause]);
+  }, [activateFrogFlush, sendSocketMessage, togglePause]);
 
   const toggleAuto = useCallback(() => {
     if (!canAutoPlay || !user) return;
@@ -563,10 +561,9 @@ function useTetrisGame() {
       return;
     }
     const source = gameRef.current;
-    if (source.status === 'ready') return;
-    if (source.status === 'gameover') sendCommand('restart');
+    if (source.status === 'ready' || source.status === 'gameover') return;
     setAutoUserId(user.id);
-  }, [autoEnabled, canAutoPlay, sendCommand, user]);
+  }, [autoEnabled, canAutoPlay, user]);
 
   const updateAutoSettings = useCallback((settings: AutoPlaySettings) => {
     if (!canAutoPlay) return;
@@ -820,11 +817,6 @@ function useTetrisGame() {
       if (action === 'pause') {
         clearHeld();
         return sendCommand('toggle_pause');
-      }
-      if (action === 'restart') {
-        clearHeld();
-        if (gameRef.current.status !== 'ready') sendCommand('restart');
-        return;
       }
       if (action === 'frogFlush') return sendCommand('frog_flush');
       if (gameRef.current.status !== 'playing') return;

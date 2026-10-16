@@ -201,21 +201,23 @@ test("rejects client-provided snapshots and pauses safely on disconnect", async 
 
 test("validates multiplayer commands against the server-owned game state", async () => {
   const { host, guest } = await createJoinedRoom();
+  const droppedAtHost = nextMessage(host, "game_state");
+  const droppedAtGuest = nextMessage(guest, "game_state");
+  send(host, { type: "action", action: "drop" });
+  await Promise.all([droppedAtHost, droppedAtGuest]);
   const pausedAtHost = nextMessage(host, "game_state");
   const pausedAtGuest = nextMessage(guest, "game_state");
   send(guest, { type: "command", command: "toggle_pause" });
   assert.equal((await pausedAtHost).state.status, "paused");
-  await pausedAtGuest;
-
-  const restartedAtHost = nextMessage(host, "game_state");
-  const restartedAtGuest = nextMessage(guest, "game_state");
+  const paused = (await pausedAtGuest).state;
+  const unchangedAtHost = nextMessage(host, "game_state");
+  const unchangedAtGuest = nextMessage(guest, "game_state");
   send(host, { type: "command", command: "restart" });
-  const restarted = (await restartedAtHost).state;
-  await restartedAtGuest;
-  assert.equal(restarted.status, "playing");
-  assert.equal(restarted.score, 0);
-  assert.equal(restarted.lines, 0);
-  assert.equal(restarted.active.length, 2);
+  // Resume on the same ordered socket to verify the rejected command kept the board.
+  send(host, { type: "command", command: "toggle_pause" });
+  const unchanged = (await unchangedAtHost).state;
+  await unchangedAtGuest;
+  assert.deepEqual(unchanged, { ...paused, status: "playing", message: "Back in the pond" });
 
   host.close();
   guest.close();

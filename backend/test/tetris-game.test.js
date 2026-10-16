@@ -11,6 +11,19 @@ function groundedGame(mode = "duel") {
 const piece = (game, player = 1) => game.state.active.find((item) => item.player === player);
 const board = (game, player = 1) => game.state.mode === "duel" ? game.state.duelBoards[player] : game.state.board;
 
+test("restart commands cannot reset playing, paused, or finished multiplayer games", () => {
+  for (const mode of ["coop", "duel"]) {
+    for (const status of ["playing", "paused", "gameover"]) {
+      const game = groundedGame(mode);
+      moveTetrisPlayer(game, 1, "drop");
+      game.state.status = status;
+      const before = structuredClone(game);
+      assert.equal(commandTetrisGame(game, "restart"), false);
+      assert.deepEqual(game, before);
+    }
+  }
+});
+
 for (const mode of ["coop", "duel"]) {
   test(`${mode}: reaching level 32 adds playable space with the same width`, () => {
     const game = groundedGame(mode);
@@ -47,8 +60,9 @@ for (const mode of ["coop", "duel"]) {
       commandTetrisGame(game, "frog_flush");
       assert.equal(board(game).length, 21);
     }
-    commandTetrisGame(game, "restart");
-    assert.equal(board(game).length, 20);
+    const beforeRestart = structuredClone(game);
+    assert.equal(commandTetrisGame(game, "restart"), false);
+    assert.deepEqual(game, beforeRestart);
   });
 
   test(`${mode}: instant gravity reaches the bottom of an expanded board`, () => {
@@ -315,16 +329,16 @@ test("clockwise and counterclockwise rotations are inverses and retain wall kick
   assert.equal(piece(game).x, 0);
 });
 
-test("hold tops out when its spawn is blocked and restart clears both reserves", () => {
+test("hold tops out when its spawn is blocked and restart cannot reset the result", () => {
   const game = groundedGame();
   game.state.hold[1] = "O";
   board(game)[0][4] = { type: "G", owner: 1 };
   moveTetrisPlayer(game, 1, "hold");
   assert.equal(game.state.status, "gameover");
   assert.equal(game.state.winner, 2);
-  commandTetrisGame(game, "restart");
-  assert.deepEqual(game.state.hold, { 1: null, 2: null });
-  assert.deepEqual(game.state.holdUsed, { 1: false, 2: false });
+  const beforeRestart = structuredClone(game);
+  assert.equal(commandTetrisGame(game, "restart"), false);
+  assert.deepEqual(game, beforeRestart);
 });
 
 test("gravity falls on its own schedule and starts a full delay at contact", () => {

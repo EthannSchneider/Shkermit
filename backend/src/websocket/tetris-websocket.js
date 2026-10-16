@@ -12,7 +12,7 @@ const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const ROOM_CODE_LENGTH = 5;
 const MAX_MESSAGES_PER_SECOND = 120;
 const VALID_ACTIONS = new Set(["left", "right", "rotate", "rotate_ccw", "down", "drop", "hold"]);
-const VALID_COMMANDS = new Set(["toggle_pause", "restart", "frog_flush"]);
+const VALID_COMMANDS = new Set(["toggle_pause", "frog_flush"]);
 const ACTION_COOLDOWNS_MS = {
   left: 20,
   right: 20,

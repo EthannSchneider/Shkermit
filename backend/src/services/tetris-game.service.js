@@ -447,10 +447,6 @@ function activateFrogFlush(session) {
 }
 
 export function commandTetrisGame(session, command) {
-  if (command === "restart") {
-    startGame(session);
-    return true;
-  }
   if (command === "frog_flush") return activateFrogFlush(session);
   if (command !== "toggle_pause") return false;
 

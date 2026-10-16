@@ -17,7 +17,6 @@ export const KEYBOARD_ACTIONS: KeyboardAction[] = [
   'drop',
   'hold',
   'pause',
-  'restart',
   'frogFlush',
 ];
 
@@ -30,7 +29,6 @@ export const KEYBOARD_ACTION_LABELS: Record<KeyboardAction, string> = {
   drop: 'Hard drop',
   hold: 'Hold piece',
   pause: 'Pause',
-  restart: 'Restart',
   frogFlush: 'Frog Flush',
 };
 
@@ -43,7 +41,6 @@ export const DEFAULT_BINDINGS: KeyboardBindings = {
   drop: { code: 'KeyF', label: 'F' },
   hold: { code: 'KeyC', label: 'C' },
   pause: { code: 'KeyP', label: 'P' },
-  restart: { code: 'KeyR', label: 'R' },
   frogFlush: { code: 'KeyB', label: 'B' },
 };
 

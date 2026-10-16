@@ -16,7 +16,6 @@ export function handleTetrisController(control: GamepadControl, controller: Cont
     return;
   }
   if (control === 'start') return sendCommand('toggle_pause');
-  if (control === 'select') return sendCommand('restart');
   if (control === 'east' && game.status !== 'playing') return returnToMenu();
   if (game.status !== 'playing') return;
   if (control === 'north') return sendCommand('frog_flush');

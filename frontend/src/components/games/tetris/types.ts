@@ -4,9 +4,9 @@ export type PlayerId = 1 | 2;
 export type GameMode = 'solo' | 'coop' | 'duel';
 export type GameStatus = 'ready' | 'playing' | 'paused' | 'gameover';
 export type Action = 'left' | 'right' | 'rotate' | 'rotate_ccw' | 'down' | 'drop' | 'hold';
-export type GameCommand = 'toggle_pause' | 'restart' | 'frog_flush';
+export type GameCommand = 'toggle_pause' | 'frog_flush';
 export type CoopPhase = 'idle' | 'connecting' | 'hosting' | 'connected' | 'error';
-export type KeyboardAction = Action | 'pause' | 'restart' | 'frogFlush';
+export type KeyboardAction = Action | 'pause' | 'frogFlush';
 
 export type KeyBinding = {
   code: string;

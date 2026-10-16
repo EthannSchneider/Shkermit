@@ -412,7 +412,6 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
                   <h2 className="mt-3 text-2xl">{game.status === 'paused' ? t("PAUSED") : game.mode === 'duel' && game.winner ? t("{{value1}} WINS", { value1: playerLabel(game.winner) }) : t("{{value1}} PTS", { value1: game.score.toLocaleString(i18n.resolvedLanguage) })}</h2>
                   <div className="mt-6 flex flex-wrap justify-center gap-2">
                     {game.status === 'paused' && <button onClick={() => sendCommand('toggle_pause')} className="rounded-lg bg-lime-300 px-4 py-3 text-[10px] text-[#061008]">{t("KEEP STACKING")}</button>}
-                    <button onClick={() => sendCommand('restart')} className="rounded-lg border border-white/15 bg-white/8 px-4 py-3 text-[10px]">{t("RESTART")}</button>
                   </div>
                   {game.status === 'gameover' && (
                     <button
@@ -439,7 +438,6 @@ export default function TetrisGame({ controller }: TetrisGameProps) {
             </div>
             <div className="mt-3 flex w-full flex-wrap gap-2">
               <button onClick={() => sendCommand('toggle_pause')} className="flex-1 rounded-lg border border-white/10 bg-white/4 py-3 text-[9px] text-white/50 hover:bg-white/10">{game.status === 'paused' ? t("RESUME") : t("PAUSE")} · {t(keyBindings.pause.label)}</button>
-              <button onClick={() => sendCommand('restart')} aria-label={t("RESTART")} className="rounded-lg border border-white/10 bg-white/4 px-4 py-3 text-[9px] text-white/50 hover:bg-white/10">↻</button>
               {game.mode !== 'solo' && <button onClick={leaveCoop} className="rounded-lg border border-pink-200/15 bg-pink-300/4 px-3 py-3 text-[9px] text-pink-100/55">{t("LEAVE")}</button>}
             </div>
           </section>

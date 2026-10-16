@@ -460,6 +460,17 @@ test('new keyboard actions preserve saved custom keys even when C and Q are alre
   }
 });
 
+test('saved restart bindings are discarded without changing other keyboard controls', () => {
+  const saved = { ...DEFAULT_BINDINGS, restart: { code: 'KeyR', label: 'R' } };
+  globalThis.window = { localStorage: { getItem: () => JSON.stringify(saved) } };
+  try {
+    assert.deepEqual(getSavedBindings(), DEFAULT_BINDINGS);
+    assert.equal(Object.hasOwn(getSavedBindings(), 'restart'), false);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test('T-spin detection distinguishes front corners in every orientation', () => {
   const frontCorners = [[0, 1], [1, 3], [2, 3], [0, 2]];
   const corners = [[3, 5], [5, 5], [3, 7], [5, 7]];

@@ -49,11 +49,21 @@ test('online co-op and duel actions target the local seat, including player two'
   }
 });
 
-test('paused and finished games ignore movement but permit resume, restart, and menu', () => {
+test('paused and finished games ignore movement and restart but permit resume and menu', () => {
   for (const status of ['paused', 'gameover']) {
     const game = controller({ status });
     for (const control of ['left', 'south', 'west', 'north', 'start', 'select', 'east']) handleTetrisController(control, game);
-    assert.deepEqual(game.calls, [['sendCommand', 'toggle_pause'], ['sendCommand', 'restart'], ['returnToMenu']]);
+    assert.deepEqual(game.calls, [['sendCommand', 'toggle_pause'], ['returnToMenu']]);
+  }
+});
+
+test('controller select cannot reset a game in any mode or status', () => {
+  for (const mode of ['solo', 'coop', 'duel']) {
+    for (const status of ['ready', 'playing', 'paused', 'gameover']) {
+      const game = controller({ mode, status, playerId: 1 });
+      handleTetrisController('select', game);
+      assert.deepEqual(game.calls, []);
+    }
   }
 });
 
